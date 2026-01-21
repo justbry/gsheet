@@ -224,5 +224,5 @@ AUTHENTICATION:
  */
 export function getVersionText(): string {
   // Note: In production, this would read from package.json
-  return 'g-sheet-agent-io v1.0.0';
+  return 'gsheet v1.0.0';
 }

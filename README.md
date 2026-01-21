@@ -1,4 +1,4 @@
-# g-sheet-agent-io
+# gsheet
 
 A lightweight TypeScript library that turns Google Sheets into a powerful agent workspace. Read, write, search data and manage task plans—all backed by a human-readable spreadsheet.
 
@@ -15,13 +15,13 @@ A lightweight TypeScript library that turns Google Sheets into a powerful agent 
 ## Installation
 
 ```bash
-bun add g-sheet-agent-io zod
+bun add gsheet zod
 ```
 
 ## Quick Start
 
 ```typescript
-import { SheetAgent } from 'g-sheet-agent-io';
+import { SheetAgent } from 'gsheet';
 
 // Connect to the agent (auto-initializes workspace)
 const agent = await SheetAgent.connect({
@@ -82,10 +82,10 @@ The library includes a command-line interface (`gsheet`) for interacting with Go
 
 ```bash
 # Install globally
-bun install -g g-sheet-agent-io
+bun install -g gsheet
 
 # Or use directly with bunx
-bunx g-sheet-agent-io --help
+bunx gsheet --help
 ```
 
 ### Quick Start
@@ -372,7 +372,7 @@ import {
   NetworkError,
   AuthError,
   PlanError
-} from 'g-sheet-agent-io';
+} from 'gsheet';
 
 try {
   await agent.write({ sheet: 'Data', data: [...] });

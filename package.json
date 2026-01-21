@@ -1,5 +1,5 @@
 {
-  "name": "g-sheet-agent-io",
+  "name": "gsheet",
   "version": "1.0.0",
   "description": "A lightweight TypeScript library that adds agent workspace capabilities to Google Sheets",
   "type": "module",
