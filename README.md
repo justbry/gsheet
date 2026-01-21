@@ -65,6 +65,19 @@ if (task) {
 
 The library includes a command-line interface (`gsheet`) for interacting with Google Sheets as a file system, storing markdown files in an AGENTSCAPE sheet.
 
+> **NOTE: Why Start with the CLI?**
+>
+> When building agentic systems, starting with a CLI provides several advantages:
+>
+> - **Rapid Prototyping** — Test your agent's workspace structure without writing application code
+> - **Hands-on Understanding** — Interact with the AGENTSCAPE sheet directly to understand how files are stored and retrieved
+> - **Debugging Aid** — Manually inspect, read, and modify agent files during development
+> - **Human-in-the-Loop** — Easily inject context, review agent outputs, or correct mistakes before automation
+> - **Progressive Enhancement** — Start with manual CLI commands, then automate with scripts, finally integrate the library API
+> - **Shared Mental Model** — The CLI commands (`read`, `write`, `ls`) map directly to the library's API methods
+>
+> The CLI is not just a convenience tool—it's a learning interface that helps you design better agentic workflows by making the agent's workspace tangible and inspectable.
+
 ### Installation
 
 ```bash
