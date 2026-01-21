@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(bun run validate:*)",
+      "Bash(grep:*)",
+      "Bash(bun run:*)",
+      "Bash(bun build:*)",
+      "Bash(ls:*)",
+      "Bash(bun test)",
+      "Bash(find:*)",
+      "Bash(bun test:*)",
+      "Bash(obsidian-cli:*)",
+      "Bash(lsof:*)"
+    ]
+  }
+}

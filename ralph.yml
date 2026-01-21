@@ -1,0 +1,35 @@
+# Ralph Orchestrator Configuration
+agent: auto
+# Agent selection + fallback ordering (used when agent=auto, and for fallback order)
+# Valid values: acp, claude, gemini, qchat (aliases: codex->acp, q->qchat)
+agent_priority:
+  - claude
+prompt_file: RALPH_PROMPT_v2.md
+max_iterations: 300
+max_runtime: 28800
+verbose: false
+
+# Adapter configurations
+adapters:
+  claude:
+    enabled: true
+    timeout: 300
+  kiro:
+    enabled: false
+    timeout: 300
+  q:
+    enabled: false
+    timeout: 300
+  gemini:
+    enabled: false
+    timeout: 300
+  # ACP (Agent Client Protocol) adapter for Gemini CLI and other ACP-compatible agents
+  acp:
+    enabled: false
+    timeout: 300
+    # ACP-specific settings (stored in tool_permissions)
+    tool_permissions:
+      agent_command: claude
+      agent_args: []
+      permission_mode: auto_approve # auto_approve, deny_all, allowlist, interactive
+      permission_allowlist: [] # Patterns for allowlist mode: "fs/*", "/^terminal\/.*$/"
