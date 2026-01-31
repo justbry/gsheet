@@ -1,5 +1,5 @@
 /**
- * g-sheet-agent-io
+ * gsheet
  * A lightweight TypeScript library that adds agent workspace capabilities to Google Sheets
  */
 
