@@ -3,7 +3,7 @@
   "spec": "001-cleanup-legacy-references",
   "state": "building",
   "subtasks": {
-    "completed": 11,
+    "completed": 12,
     "total": 13,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 13,
+    "number": 14,
     "started_at": "2026-01-31T01:02:26.399537"
   },
-  "last_update": "2026-01-31T01:19:18.775870"
+  "last_update": "2026-01-31T01:20:35.557481"
 }
