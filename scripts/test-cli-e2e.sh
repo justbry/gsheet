@@ -83,14 +83,14 @@ else
 fi
 
 log_test "gsheet --version displays version"
-if gsheet --version | grep -q "g-sheet-agent-io v"; then
+if gsheet --version | grep -q "gsheet v"; then
   pass
 else
   fail "Version not displayed"
 fi
 
 log_test "gsheet -v works as alias"
-if gsheet -v | grep -q "g-sheet-agent-io v"; then
+if gsheet -v | grep -q "gsheet v"; then
   pass
 else
   fail "Short flag -v not working"
