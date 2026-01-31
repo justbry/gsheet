@@ -1,6 +1,6 @@
 /**
  * Web Demo Server
- * Interactive demo of g-sheet-agent-io with WebSocket support
+ * Interactive demo of gsheet with WebSocket support
  */
 import { SheetAgent, ValidationError, PermissionError, AuthError } from '../../src/index';
 import type { PhaseInput, TaskUpdate } from '../../src/types';

@@ -1,6 +1,6 @@
-# g-sheet-agent-io Web Demo
+# gsheet Web Demo
 
-Interactive web UI demonstrating the g-sheet-agent-io library with real-time plan management, agent context editing, and task tracking.
+Interactive web UI demonstrating the gsheet library with real-time plan management, agent context editing, and task tracking.
 
 ## Features
 
@@ -257,11 +257,11 @@ case 'my_event':
 
 ## License
 
-Same as g-sheet-agent-io (see parent README)
+Same as gsheet (see parent README)
 
 ## Support
 
 For issues or questions, please check:
-- [g-sheet-agent-io Documentation](../../README.md)
+- [gsheet Documentation](../../README.md)
 - [Google Sheets API Docs](https://developers.google.com/sheets/api)
 - [Bun Documentation](https://bun.sh/docs)
