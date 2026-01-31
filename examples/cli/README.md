@@ -103,9 +103,9 @@ You can create your own automation scripts using the AgentScapeManager:
 ```typescript
 #!/usr/bin/env bun
 
-import { SheetClient } from 'g-sheet-agent-io/dist/core/sheet-client';
-import { PlanManager } from 'g-sheet-agent-io/dist/managers/plan-manager';
-import { AgentScapeManager } from 'g-sheet-agent-io/dist/managers/agentscape-manager';
+import { SheetClient } from 'gsheet/dist/core/sheet-client';
+import { PlanManager } from 'gsheet/dist/managers/plan-manager';
+import { AgentScapeManager } from 'gsheet/dist/managers/agentscape-manager';
 
 async function main() {
   const spreadsheetId = 'YOUR_SPREADSHEET_ID';
