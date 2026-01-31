@@ -34,3 +34,6 @@ prompts/archive/*
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# Auto Claude data directory
+.auto-claude/

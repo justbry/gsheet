@@ -1,0 +1,39 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(/Users/rmac/repos/gsheet/.auto-claude/worktrees/tasks/001-cleanup-legacy-references/**)",
+      "Write(/Users/rmac/repos/gsheet/.auto-claude/worktrees/tasks/001-cleanup-legacy-references/**)",
+      "Edit(/Users/rmac/repos/gsheet/.auto-claude/worktrees/tasks/001-cleanup-legacy-references/**)",
+      "Glob(/Users/rmac/repos/gsheet/.auto-claude/worktrees/tasks/001-cleanup-legacy-references/**)",
+      "Grep(/Users/rmac/repos/gsheet/.auto-claude/worktrees/tasks/001-cleanup-legacy-references/**)",
+      "Read(/Users/rmac/repos/gsheet/.auto-claude/worktrees/tasks/001-cleanup-legacy-references/.auto-claude/specs/001-cleanup-legacy-references/**)",
+      "Write(/Users/rmac/repos/gsheet/.auto-claude/worktrees/tasks/001-cleanup-legacy-references/.auto-claude/specs/001-cleanup-legacy-references/**)",
+      "Edit(/Users/rmac/repos/gsheet/.auto-claude/worktrees/tasks/001-cleanup-legacy-references/.auto-claude/specs/001-cleanup-legacy-references/**)",
+      "Read(/Users/rmac/repos/gsheet/.auto-claude/**)",
+      "Write(/Users/rmac/repos/gsheet/.auto-claude/**)",
+      "Edit(/Users/rmac/repos/gsheet/.auto-claude/**)",
+      "Glob(/Users/rmac/repos/gsheet/.auto-claude/**)",
+      "Grep(/Users/rmac/repos/gsheet/.auto-claude/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__get-library-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}
