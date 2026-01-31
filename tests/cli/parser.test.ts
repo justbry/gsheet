@@ -307,7 +307,7 @@ describe('Parser', () => {
     it('should return version text', () => {
       const version = getVersionText();
 
-      expect(version).toContain('g-sheet-agent-io');
+      expect(version).toContain('gsheet');
       expect(version).toMatch(/\d+\.\d+\.\d+/); // Should contain version number
     });
   });
