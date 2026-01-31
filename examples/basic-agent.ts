@@ -1,7 +1,7 @@
 /**
  * Basic Agent Example
  *
- * This example demonstrates the minimal setup required to use g-sheet-agent-io
+ * This example demonstrates the minimal setup required to use gsheet
  * for reading and writing data to Google Sheets.
  *
  * Prerequisites:

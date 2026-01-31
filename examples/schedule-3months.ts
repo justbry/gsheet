@@ -1,7 +1,7 @@
 /**
  * 3-Month Class Scheduling Workflow Example
  *
- * This example demonstrates how to use g-sheet-agent-io to run the
+ * This example demonstrates how to use gsheet to run the
  * 3-month class scheduling workflow that:
  * 1. Scans the Schedule sheet for unassigned slots in next 3 months
  * 2. Reads Teachers sheet to find compatible teachers

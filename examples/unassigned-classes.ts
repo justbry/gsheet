@@ -1,7 +1,7 @@
 /**
  * Unassigned Classes Example
  *
- * This example demonstrates how to use g-sheet-agent-io to:
+ * This example demonstrates how to use gsheet to:
  * 1. Read data from a "Schedule" sheet
  * 2. Find all classes that don't have a teacher assigned (empty cell)
  * 3. Filter for classes scheduled in the next 3 months
