@@ -3,7 +3,7 @@
  */
 
 /**
- * Base error class for all g-sheet-agent-io errors
+ * Base error class for all gsheet errors
  */
 export abstract class SheetAgentError extends Error {
   abstract readonly code: string;
