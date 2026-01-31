@@ -1,6 +1,6 @@
 # Test Scripts
 
-This directory contains automated testing scripts for the g-sheet-agent-io CLI.
+This directory contains automated testing scripts for the gsheet CLI.
 
 ---
 
