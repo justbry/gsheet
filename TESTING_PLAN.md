@@ -88,7 +88,7 @@ gsheet --version
 **Verify:**
 - [ ] `which gsheet` shows path to linked binary
 - [ ] `gsheet --version` displays version
-- [ ] Version format matches "g-sheet-agent-io vX.X.X"
+- [ ] Version format matches "gsheet vX.X.X"
 
 ### 0.5 Quick Functional Test
 ```bash
@@ -264,7 +264,7 @@ gsheet -v
 
 **Verify:**
 - [ ] Version number displays
-- [ ] Format is "g-sheet-agent-io vX.X.X"
+- [ ] Format is "gsheet vX.X.X"
 
 ### 3.2 Error Handling
 

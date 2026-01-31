@@ -1,7 +1,7 @@
 # gsheet CLI Test Results
 
 **Date:** 2026-01-21
-**Version:** g-sheet-agent-io v1.0.0
+**Version:** gsheet v1.0.0
 **Tester:** Automated + Manual Testing
 
 ---
@@ -46,7 +46,7 @@ DTS dist/cli/index.d.ts    19 B
 ### 0.4 Test CLI Link Installation
 - ✅ `bun link` succeeds
 - ✅ `which gsheet` returns `/Users/rmac/.bun/bin/gsheet`
-- ✅ `gsheet --version` displays `g-sheet-agent-io v1.0.0`
+- ✅ `gsheet --version` displays `gsheet v1.0.0`
 
 ### 0.5 Quick Functional Test
 - ✅ `gsheet --help` displays help text correctly
@@ -333,5 +333,5 @@ The single failing unit test is a test infrastructure issue (vi.mocked API) and 
 
 **Tested By:** Automated Testing Suite + Manual Verification
 **Date:** 2026-01-21
-**CLI Version:** g-sheet-agent-io v1.0.0
+**CLI Version:** gsheet v1.0.0
 **Status:** ✅ **PASSED - PRODUCTION READY**

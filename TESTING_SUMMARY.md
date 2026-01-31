@@ -1,6 +1,6 @@
 # gsheet CLI Testing Summary
 
-**Version:** g-sheet-agent-io v1.0.0
+**Version:** gsheet v1.0.0
 **Date:** 2026-01-21
 **Status:** ✅ **PRODUCTION READY**
 
