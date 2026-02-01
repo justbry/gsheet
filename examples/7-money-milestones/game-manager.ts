@@ -1,8 +1,9 @@
 /**
  * 7 Money Milestones - Financial Simulation Game Manager
  *
- * A single-player financial simulation game demonstrating gsheet read/write patterns.
- * Players pick habits, advance through 7 life phases, make choices, and roll dice.
+ * Based on the HowMoneyWorks 7 Money Milestones framework.
+ * Each milestone has 4 levels: red (10), orange (40), yellow (70), green (100).
+ * Final score = average of all 7 milestone scores.
  */
 
 import type { SheetAgent } from '../../src/agent';
@@ -27,17 +28,33 @@ export interface PlayerStats {
   currentPhase: number; // 1-7, 8 = game over
 }
 
+export type MilestoneColor = 'red' | 'orange' | 'yellow' | 'green';
+
+export const MILESTONE_SCORES: Record<MilestoneColor, number> = {
+  red: 10,
+  orange: 40,
+  yellow: 70,
+  green: 100,
+};
+
+export interface MilestoneLevel {
+  color: MilestoneColor;
+  description: string;
+}
+
 export interface PhaseEventOption {
   label: string;
-  worst: { cash: number; debt: number; assets: number; ip: number };
-  avg: { cash: number; debt: number; assets: number; ip: number };
-  best: { cash: number; debt: number; assets: number; ip: number };
+  red:    { cash: number; debt: number; assets: number; ip: number };
+  orange: { cash: number; debt: number; assets: number; ip: number };
+  yellow: { cash: number; debt: number; assets: number; ip: number };
+  green:  { cash: number; debt: number; assets: number; ip: number };
 }
 
 export interface PhaseEvent {
   phase: number;
   title: string;
   description: string;
+  levels: [MilestoneLevel, MilestoneLevel, MilestoneLevel, MilestoneLevel]; // red, orange, yellow, green
   optionA: PhaseEventOption;
   optionB: PhaseEventOption;
   optionC: PhaseEventOption;
@@ -47,109 +64,179 @@ export interface PhaseEvent {
 
 const PHASE_EVENTS: PhaseEvent[] = [
   {
-    phase: 1, title: 'Financial Education', description: 'Milestone 1: Acquire a financial education — the foundation for every decision ahead.',
+    phase: 1, title: 'Financial Education',
+    description: 'Milestone 1: Acquire a financial education — the foundation for every decision ahead.',
+    levels: [
+      { color: 'red', description: 'Not sure where to start' },
+      { color: 'orange', description: 'Some knowledge with no plan' },
+      { color: 'yellow', description: 'Some knowledge with partial plan' },
+      { color: 'green', description: 'Knowledgeable with full plan' },
+    ],
     optionA: { label: 'Read personal finance books on your own',
-      worst: { cash: -50, debt: 0, assets: 0, ip: 1 },
-      avg:   { cash: 0, debt: 0, assets: 0, ip: 2 },
-      best:  { cash: 100, debt: 0, assets: 0, ip: 3 } },
-    optionB: { label: 'Take an online financial literacy course',
-      worst: { cash: -200, debt: 0, assets: 0, ip: 1 },
-      avg:   { cash: -100, debt: 0, assets: 0, ip: 3 },
-      best:  { cash: 0, debt: 0, assets: 0, ip: 5 } },
+      red:    { cash: -50, debt: 0, assets: 0, ip: 1 },
+      orange: { cash: 0, debt: 0, assets: 0, ip: 2 },
+      yellow: { cash: 50, debt: 0, assets: 0, ip: 3 },
+      green:  { cash: 100, debt: 0, assets: 0, ip: 4 } },
+    optionB: { label: 'Take a financial literacy course',
+      red:    { cash: -200, debt: 0, assets: 0, ip: 1 },
+      orange: { cash: -150, debt: 0, assets: 0, ip: 2 },
+      yellow: { cash: -100, debt: 0, assets: 0, ip: 4 },
+      green:  { cash: 0, debt: 0, assets: 100, ip: 5 } },
     optionC: { label: 'Work with a financial professional',
-      worst: { cash: -300, debt: 0, assets: 0, ip: 2 },
-      avg:   { cash: -200, debt: 0, assets: 100, ip: 3 },
-      best:  { cash: -100, debt: 0, assets: 200, ip: 4 } },
+      red:    { cash: -300, debt: 0, assets: 0, ip: 2 },
+      orange: { cash: -250, debt: 0, assets: 100, ip: 3 },
+      yellow: { cash: -200, debt: 0, assets: 150, ip: 4 },
+      green:  { cash: -100, debt: 0, assets: 300, ip: 5 } },
   },
   {
-    phase: 2, title: 'Proper Protection', description: 'Milestone 2: Ensure adequate protection — safeguard your income and loved ones.',
+    phase: 2, title: 'Proper Protection',
+    description: 'Milestone 2: Ensure adequate insurance protection — safeguard your income and loved ones.',
+    levels: [
+      { color: 'red', description: 'Missing key insurance' },
+      { color: 'orange', description: 'Lacking coverage in key areas' },
+      { color: 'yellow', description: 'Premiums are high/underinsured' },
+      { color: 'green', description: 'Right types, coverage, and price' },
+    ],
     optionA: { label: 'Basic term life insurance only',
-      worst: { cash: -100, debt: 0, assets: 0, ip: 0 },
-      avg:   { cash: -100, debt: 0, assets: 100, ip: 1 },
-      best:  { cash: -100, debt: 0, assets: 300, ip: 1 } },
-    optionB: { label: 'Comprehensive life + disability coverage',
-      worst: { cash: -300, debt: 0, assets: 0, ip: 0 },
-      avg:   { cash: -250, debt: 0, assets: 400, ip: 1 },
-      best:  { cash: -200, debt: 0, assets: 800, ip: 2 } },
+      red:    { cash: -50, debt: 0, assets: 0, ip: 0 },
+      orange: { cash: -100, debt: 0, assets: 100, ip: 0 },
+      yellow: { cash: -100, debt: 0, assets: 200, ip: 1 },
+      green:  { cash: -100, debt: 0, assets: 400, ip: 1 } },
+    optionB: { label: 'Comprehensive life + disability + umbrella',
+      red:    { cash: -300, debt: 0, assets: 0, ip: 0 },
+      orange: { cash: -250, debt: 0, assets: 200, ip: 1 },
+      yellow: { cash: -250, debt: 0, assets: 500, ip: 1 },
+      green:  { cash: -200, debt: 0, assets: 800, ip: 2 } },
     optionC: { label: 'Skip insurance — invest the premiums instead',
-      worst: { cash: -500, debt: 500, assets: -200, ip: 0 },
-      avg:   { cash: 200, debt: 0, assets: 200, ip: 0 },
-      best:  { cash: 400, debt: 0, assets: 500, ip: 1 } },
+      red:    { cash: -500, debt: 500, assets: -200, ip: 0 },
+      orange: { cash: -100, debt: 200, assets: 100, ip: 0 },
+      yellow: { cash: 200, debt: 0, assets: 200, ip: 0 },
+      green:  { cash: 400, debt: 0, assets: 500, ip: 1 } },
   },
   {
-    phase: 3, title: 'Emergency Fund', description: 'Milestone 3: Establish an emergency fund — your financial buffer for the unexpected.',
-    optionA: { label: 'Save 3 months of expenses in savings account',
-      worst: { cash: 200, debt: 0, assets: 0, ip: 0 },
-      avg:   { cash: 500, debt: 0, assets: 0, ip: 1 },
-      best:  { cash: 800, debt: 0, assets: 0, ip: 1 } },
-    optionB: { label: 'Build 6 months in a high-yield money market',
-      worst: { cash: 100, debt: 0, assets: 100, ip: 0 },
-      avg:   { cash: 400, debt: 0, assets: 300, ip: 1 },
-      best:  { cash: 700, debt: 0, assets: 500, ip: 2 } },
+    phase: 3, title: 'Emergency Fund',
+    description: 'Milestone 3: Establish an emergency fund — your financial buffer for the unexpected.',
+    levels: [
+      { color: 'red', description: 'No emergency fund' },
+      { color: 'orange', description: 'Neither fully funded nor over 1%' },
+      { color: 'yellow', description: 'Funded OR over 1%' },
+      { color: 'green', description: 'Fully funded AND over 1%' },
+    ],
+    optionA: { label: 'Save 3 months in a savings account',
+      red:    { cash: 100, debt: 0, assets: 0, ip: 0 },
+      orange: { cash: 300, debt: 0, assets: 0, ip: 0 },
+      yellow: { cash: 600, debt: 0, assets: 0, ip: 1 },
+      green:  { cash: 800, debt: 0, assets: 100, ip: 1 } },
+    optionB: { label: 'Build 6 months in a high-yield account',
+      red:    { cash: 50, debt: 0, assets: 50, ip: 0 },
+      orange: { cash: 200, debt: 0, assets: 200, ip: 0 },
+      yellow: { cash: 400, debt: 0, assets: 400, ip: 1 },
+      green:  { cash: 700, debt: 0, assets: 600, ip: 2 } },
     optionC: { label: 'Keep minimal cash — rely on credit lines',
-      worst: { cash: -400, debt: 800, assets: 0, ip: 0 },
-      avg:   { cash: 100, debt: 200, assets: 0, ip: 0 },
-      best:  { cash: 300, debt: 0, assets: 0, ip: 1 } },
+      red:    { cash: -400, debt: 800, assets: 0, ip: 0 },
+      orange: { cash: -100, debt: 300, assets: 0, ip: 0 },
+      yellow: { cash: 100, debt: 0, assets: 0, ip: 0 },
+      green:  { cash: 300, debt: 0, assets: 0, ip: 1 } },
   },
   {
-    phase: 4, title: 'Debt Management', description: 'Milestone 4: Implement debt management — free your income from high-interest obligations.',
+    phase: 4, title: 'Debt Management',
+    description: 'Milestone 4: Implement debt management — free your income from high-interest obligations.',
+    levels: [
+      { color: 'red', description: 'Mortgage + >20% non-mortgage debt-to-income' },
+      { color: 'orange', description: 'Mortgage + 12%-20% non-mortgage DTI' },
+      { color: 'yellow', description: 'Mortgage + 5%-12% non-mortgage DTI' },
+      { color: 'green', description: 'Mortgage + <5% non-mortgage DTI' },
+    ],
     optionA: { label: 'Snowball method — smallest balances first',
-      worst: { cash: 0, debt: -200, assets: 0, ip: 0 },
-      avg:   { cash: 100, debt: -500, assets: 0, ip: 1 },
-      best:  { cash: 300, debt: -800, assets: 0, ip: 2 } },
+      red:    { cash: 0, debt: -100, assets: 0, ip: 0 },
+      orange: { cash: 50, debt: -300, assets: 0, ip: 1 },
+      yellow: { cash: 100, debt: -600, assets: 0, ip: 1 },
+      green:  { cash: 300, debt: -900, assets: 0, ip: 2 } },
     optionB: { label: 'Avalanche method — highest interest first',
-      worst: { cash: -100, debt: -300, assets: 0, ip: 1 },
-      avg:   { cash: 0, debt: -600, assets: 0, ip: 2 },
-      best:  { cash: 200, debt: -900, assets: 0, ip: 3 } },
-    optionC: { label: 'Consolidate with a personal loan',
-      worst: { cash: -200, debt: 200, assets: 0, ip: 0 },
-      avg:   { cash: 100, debt: -400, assets: 0, ip: 1 },
-      best:  { cash: 300, debt: -700, assets: 0, ip: 2 } },
+      red:    { cash: -100, debt: -200, assets: 0, ip: 1 },
+      orange: { cash: 0, debt: -400, assets: 0, ip: 1 },
+      yellow: { cash: 0, debt: -700, assets: 0, ip: 2 },
+      green:  { cash: 200, debt: -1000, assets: 0, ip: 3 } },
+    optionC: { label: 'Consolidate into a personal loan',
+      red:    { cash: -200, debt: 200, assets: 0, ip: 0 },
+      orange: { cash: 0, debt: -200, assets: 0, ip: 0 },
+      yellow: { cash: 100, debt: -500, assets: 0, ip: 1 },
+      green:  { cash: 300, debt: -800, assets: 0, ip: 2 } },
   },
   {
-    phase: 5, title: 'Cash Flow', description: 'Milestone 5: Enhance your cash flow — optimize your budget to fuel savings and growth.',
+    phase: 5, title: 'Cash Flow',
+    description: 'Milestone 5: Enhance your cash flow — pay into debt, savings, and retirement.',
+    levels: [
+      { color: 'red', description: 'Not able to make payments' },
+      { color: 'orange', description: 'Able to pay into 1 of 3 areas' },
+      { color: 'yellow', description: 'Able to pay into 2 of 3 areas' },
+      { color: 'green', description: 'Able to pay into debt, savings, and retirement' },
+    ],
     optionA: { label: 'Strict budget — cut discretionary spending',
-      worst: { cash: 200, debt: 0, assets: 0, ip: 0 },
-      avg:   { cash: 500, debt: 0, assets: 100, ip: 1 },
-      best:  { cash: 800, debt: 0, assets: 200, ip: 1 } },
+      red:    { cash: 100, debt: 0, assets: 0, ip: 0 },
+      orange: { cash: 300, debt: 0, assets: 0, ip: 0 },
+      yellow: { cash: 500, debt: -100, assets: 100, ip: 1 },
+      green:  { cash: 800, debt: -200, assets: 300, ip: 1 } },
     optionB: { label: 'Increase income — side hustle or negotiate raise',
-      worst: { cash: -100, debt: 0, assets: 0, ip: 1 },
-      avg:   { cash: 400, debt: 0, assets: 0, ip: 2 },
-      best:  { cash: 1000, debt: 0, assets: 300, ip: 3 } },
-    optionC: { label: 'Automate — set up systematic transfers',
-      worst: { cash: 100, debt: 0, assets: 100, ip: 0 },
-      avg:   { cash: 300, debt: 0, assets: 300, ip: 1 },
-      best:  { cash: 600, debt: 0, assets: 600, ip: 2 } },
+      red:    { cash: -100, debt: 0, assets: 0, ip: 1 },
+      orange: { cash: 200, debt: 0, assets: 0, ip: 1 },
+      yellow: { cash: 500, debt: 0, assets: 200, ip: 2 },
+      green:  { cash: 1000, debt: -100, assets: 400, ip: 3 } },
+    optionC: { label: 'Automate — systematic transfers to all 3 areas',
+      red:    { cash: 50, debt: 0, assets: 50, ip: 0 },
+      orange: { cash: 200, debt: -100, assets: 150, ip: 1 },
+      yellow: { cash: 400, debt: -200, assets: 300, ip: 1 },
+      green:  { cash: 600, debt: -300, assets: 500, ip: 2 } },
   },
   {
-    phase: 6, title: 'Build Wealth', description: 'Milestone 6: Accelerate wealth building — invest strategically for your future.',
+    phase: 6, title: 'Build Wealth',
+    description: 'Milestone 6: Accelerate wealth building — grow assets toward financial independence.',
+    levels: [
+      { color: 'red', description: '0-25% of after-tax income saved/invested' },
+      { color: 'orange', description: '26-50% of after-tax income saved/invested' },
+      { color: 'yellow', description: '51-75% of after-tax income saved/invested' },
+      { color: 'green', description: '76-100% of after-tax income saved/invested' },
+    ],
     optionA: { label: 'Index funds — diversified, low-cost',
-      worst: { cash: 0, debt: 0, assets: 500, ip: 0 },
-      avg:   { cash: 200, debt: 0, assets: 1200, ip: 1 },
-      best:  { cash: 500, debt: 0, assets: 2000, ip: 1 } },
+      red:    { cash: 0, debt: 0, assets: 300, ip: 0 },
+      orange: { cash: 0, debt: 0, assets: 800, ip: 1 },
+      yellow: { cash: 200, debt: 0, assets: 1500, ip: 1 },
+      green:  { cash: 500, debt: 0, assets: 2500, ip: 2 } },
     optionB: { label: 'Real estate + retirement accounts',
-      worst: { cash: -500, debt: 500, assets: 800, ip: 0 },
-      avg:   { cash: 200, debt: 0, assets: 2000, ip: 2 },
-      best:  { cash: 800, debt: 0, assets: 4000, ip: 3 } },
+      red:    { cash: -500, debt: 500, assets: 600, ip: 0 },
+      orange: { cash: -200, debt: 0, assets: 1500, ip: 1 },
+      yellow: { cash: 200, debt: 0, assets: 2500, ip: 2 },
+      green:  { cash: 800, debt: 0, assets: 4000, ip: 3 } },
     optionC: { label: 'Start a business with your expertise',
-      worst: { cash: -800, debt: 1500, assets: 0, ip: 2 },
-      avg:   { cash: 500, debt: 0, assets: 1500, ip: 3 },
-      best:  { cash: 2000, debt: 0, assets: 3000, ip: 5 } },
+      red:    { cash: -800, debt: 1500, assets: 0, ip: 2 },
+      orange: { cash: -200, debt: 500, assets: 1000, ip: 2 },
+      yellow: { cash: 500, debt: 0, assets: 2000, ip: 3 },
+      green:  { cash: 2000, debt: 0, assets: 3500, ip: 5 } },
   },
   {
-    phase: 7, title: 'Protect Wealth', description: 'Milestone 7: Fortify wealth protection — preserve and transfer what you\'ve built.',
-    optionA: { label: 'Estate plan + trust + will',
-      worst: { cash: -300, debt: 0, assets: 500, ip: 1 },
-      avg:   { cash: -200, debt: 0, assets: 1500, ip: 2 },
-      best:  { cash: 0, debt: 0, assets: 2500, ip: 3 } },
-    optionB: { label: 'Tax-efficient strategies + asset protection',
-      worst: { cash: -200, debt: 0, assets: 800, ip: 1 },
-      avg:   { cash: 200, debt: 0, assets: 2000, ip: 2 },
-      best:  { cash: 800, debt: 0, assets: 3500, ip: 3 } },
-    optionC: { label: 'Legacy giving + generational wealth plan',
-      worst: { cash: -500, debt: 0, assets: 300, ip: 2 },
-      avg:   { cash: -200, debt: 0, assets: 1200, ip: 4 },
-      best:  { cash: 200, debt: 0, assets: 2500, ip: 5 } },
+    phase: 7, title: 'Protect Wealth',
+    description: 'Milestone 7: Fortify wealth protection — preserve and transfer what you\'ve built.',
+    levels: [
+      { color: 'red', description: 'No estate plan' },
+      { color: 'orange', description: 'Estate plan needs updated' },
+      { color: 'yellow', description: 'Some, but not all needed docs' },
+      { color: 'green', description: 'Estate plan complete' },
+    ],
+    optionA: { label: 'Basic will + power of attorney',
+      red:    { cash: -100, debt: 0, assets: 200, ip: 0 },
+      orange: { cash: -100, debt: 0, assets: 600, ip: 1 },
+      yellow: { cash: -100, debt: 0, assets: 1200, ip: 2 },
+      green:  { cash: 0, debt: 0, assets: 2000, ip: 2 } },
+    optionB: { label: 'Trust + tax-efficient asset protection',
+      red:    { cash: -300, debt: 0, assets: 500, ip: 1 },
+      orange: { cash: -200, debt: 0, assets: 1200, ip: 1 },
+      yellow: { cash: 0, debt: 0, assets: 2000, ip: 2 },
+      green:  { cash: 500, debt: 0, assets: 3500, ip: 3 } },
+    optionC: { label: 'Full estate plan + legacy giving strategy',
+      red:    { cash: -500, debt: 0, assets: 300, ip: 2 },
+      orange: { cash: -300, debt: 0, assets: 800, ip: 3 },
+      yellow: { cash: -100, debt: 0, assets: 1800, ip: 4 },
+      green:  { cash: 200, debt: 0, assets: 3000, ip: 5 } },
   },
 ];
 
@@ -165,8 +252,6 @@ export class MoneyMilestonesGame {
     savingsTier: 'L' | 'M' | 'H',
   ): Promise<void> {
     const startedDate = new Date().toISOString().split('T')[0]!;
-
-    // Calculate starting stats from habits
     const stats = this.calculateStartingStats(learningTier, healthTier, savingsTier);
 
     // Create GAME_CONFIG
@@ -199,14 +284,26 @@ export class MoneyMilestonesGame {
       ],
     });
 
+    // Create MILESTONE_SCORES — tracks color/score per milestone
+    await this.agent.createSheet('MILESTONE_SCORES');
+    await this.agent.write({
+      sheet: 'MILESTONE_SCORES',
+      range: 'A1:D8',
+      data: [
+        ['Milestone', 'Title', 'Color', 'Score'],
+        ...PHASE_EVENTS.map(e => [String(e.phase), e.title, '', '0']),
+      ],
+    });
+
     // Create PHASE_EVENTS with 7 event cards
     await this.agent.createSheet('PHASE_EVENTS');
     const eventRows: (string | number)[][] = [
-      ['Phase', 'Title', 'Description', 'Option A', 'Option B', 'Option C'],
+      ['Phase', 'Title', 'Description', 'Levels', 'Option A', 'Option B', 'Option C'],
       ...PHASE_EVENTS.map(e => [
         e.phase,
         e.title,
         e.description,
+        JSON.stringify(e.levels),
         JSON.stringify(e.optionA),
         JSON.stringify(e.optionB),
         JSON.stringify(e.optionC),
@@ -222,8 +319,8 @@ export class MoneyMilestonesGame {
     await this.agent.createSheet('GAME_LOG');
     await this.agent.write({
       sheet: 'GAME_LOG',
-      range: 'A1:G1',
-      data: [['Timestamp', 'Phase', 'Choice', 'Roll', 'Modified Roll', 'Outcome', 'Stats Snapshot']],
+      range: 'A1:H1',
+      data: [['Timestamp', 'Phase', 'Choice', 'Roll', 'Modified Roll', 'Color', 'Outcome', 'Stats Snapshot']],
     });
   }
 
@@ -232,25 +329,21 @@ export class MoneyMilestonesGame {
     healthTier: number,
     savingsTier: 'L' | 'M' | 'H',
   ): PlayerStats {
-    // Base stats
     let cash = 500;
     let debt = 1000;
     let assets = 500;
     let monthlyIncome = 2000;
     let ip = 1;
 
-    // Learning tier: IP multiplier + starting IP + monthly cost
     const ipMultiplier = learningTier === 1 ? 1.0 : learningTier === 2 ? 1.5 : 1.75;
     const learningIP = learningTier === 1 ? 0 : learningTier === 2 ? 1 : 2;
     const learningCost = learningTier === 1 ? 0 : learningTier === 2 ? 150 : 300;
     ip += learningIP;
     monthlyIncome -= learningCost;
 
-    // Health tier: income modifier + monthly cost
     if (healthTier === 1) monthlyIncome -= 150;
     if (healthTier === 3) { monthlyIncome += 150; monthlyIncome -= 75; }
 
-    // Savings tier: phase-start effect + income modifier
     if (savingsTier === 'L') cash -= 300;
     if (savingsTier === 'H') { cash += 400; monthlyIncome -= 200; }
 
@@ -285,11 +378,24 @@ export class MoneyMilestonesGame {
     return { config, stats };
   }
 
+  async getMilestoneScores(): Promise<{ phase: number; title: string; color: string; score: number }[]> {
+    const result = await this.agent.read({ sheet: 'MILESTONE_SCORES', range: 'A2:D8', format: 'array' });
+    const rows = result.rows as unknown[][];
+    return rows.map(row => ({
+      phase: Number(row[0] ?? 0),
+      title: String(row[1] ?? ''),
+      color: String(row[2] ?? ''),
+      score: Number(row[3] ?? 0),
+    }));
+  }
+
   async playPhase(choice: 'A' | 'B' | 'C'): Promise<{
     event: PhaseEvent;
     roll: number;
     modifiedRoll: number;
-    outcomeTier: 'worst' | 'avg' | 'best';
+    color: MilestoneColor;
+    milestoneScore: number;
+    levelDescription: string;
     outcome: { cash: number; debt: number; assets: number; ip: number };
     newStats: PlayerStats;
   }> {
@@ -300,10 +406,10 @@ export class MoneyMilestonesGame {
     }
 
     // Read event for current phase
-    const phaseRow = stats.currentPhase + 1; // +1 for header
+    const phaseRow = stats.currentPhase + 1;
     const eventResult = await this.agent.read({
       sheet: 'PHASE_EVENTS',
-      range: `A${phaseRow}:F${phaseRow}`,
+      range: `A${phaseRow}:G${phaseRow}`,
       format: 'array',
     });
     const row = (eventResult.rows as unknown[][])[0];
@@ -313,9 +419,10 @@ export class MoneyMilestonesGame {
       phase: Number(row[0]),
       title: String(row[1]),
       description: String(row[2]),
-      optionA: JSON.parse(String(row[3])),
-      optionB: JSON.parse(String(row[4])),
-      optionC: JSON.parse(String(row[5])),
+      levels: JSON.parse(String(row[3])),
+      optionA: JSON.parse(String(row[4])),
+      optionB: JSON.parse(String(row[5])),
+      optionC: JSON.parse(String(row[6])),
     };
 
     const selectedOption = choice === 'A' ? event.optionA : choice === 'B' ? event.optionB : event.optionC;
@@ -324,16 +431,19 @@ export class MoneyMilestonesGame {
     const roll = Math.floor(Math.random() * 6) + 1;
     const modifiedRoll = this.applyLearningModifier(roll, config.learningTier);
 
-    // Determine outcome tier
-    const outcomeTier: 'worst' | 'avg' | 'best' =
-      modifiedRoll <= 2 ? 'worst' : modifiedRoll <= 4 ? 'avg' : 'best';
+    // Map roll to color: 1=red, 2-3=orange, 4-5=yellow, 6=green
+    const color: MilestoneColor =
+      modifiedRoll <= 1 ? 'red' :
+      modifiedRoll <= 3 ? 'orange' :
+      modifiedRoll <= 5 ? 'yellow' : 'green';
 
-    const outcome = selectedOption[outcomeTier];
+    const milestoneScore = MILESTONE_SCORES[color];
+    const levelIdx = color === 'red' ? 0 : color === 'orange' ? 1 : color === 'yellow' ? 2 : 3;
+    const levelDescription = event.levels[levelIdx].description;
 
-    // Apply IP multiplier to IP gains
+    const outcome = selectedOption[color];
     const ipGain = Math.round(outcome.ip * stats.ipMultiplier);
 
-    // Update stats
     const newStats: PlayerStats = {
       cash: stats.cash + outcome.cash,
       debt: Math.max(0, stats.debt + outcome.debt),
@@ -344,7 +454,7 @@ export class MoneyMilestonesGame {
       currentPhase: stats.currentPhase + 1,
     };
 
-    // Write updated state
+    // Write updated GAME_STATE
     await this.agent.write({
       sheet: 'GAME_STATE',
       range: 'A1:B7',
@@ -359,11 +469,19 @@ export class MoneyMilestonesGame {
       ],
     });
 
+    // Update MILESTONE_SCORES for this phase
+    const msRow = stats.currentPhase + 1; // +1 for header
+    await this.agent.write({
+      sheet: 'MILESTONE_SCORES',
+      range: `C${msRow}:D${msRow}`,
+      data: [[color, String(milestoneScore)]],
+    });
+
     // Log to GAME_LOG
     const logResult = await this.agent.read({ sheet: 'GAME_LOG', format: 'array' });
     const logRows = logResult.rows as unknown[][];
     const snapshot = `C:${newStats.cash} D:${newStats.debt} A:${newStats.assets} IP:${newStats.ip}`;
-    const outcomeDesc = `${outcomeTier.toUpperCase()}: ${selectedOption.label} — cash:${outcome.cash} debt:${outcome.debt} assets:${outcome.assets} ip:${ipGain}`;
+    const outcomeDesc = `${selectedOption.label} — cash:${outcome.cash} debt:${outcome.debt} assets:${outcome.assets} ip:${ipGain}`;
 
     logRows.push([
       new Date().toISOString(),
@@ -371,22 +489,21 @@ export class MoneyMilestonesGame {
       choice,
       String(roll),
       String(modifiedRoll),
+      color.toUpperCase(),
       outcomeDesc,
       snapshot,
     ]);
 
     await this.agent.write({ sheet: 'GAME_LOG', range: 'A1', data: logRows });
 
-    return { event, roll, modifiedRoll, outcomeTier, outcome: { ...outcome, ip: ipGain }, newStats };
+    return { event, roll, modifiedRoll, color, milestoneScore, levelDescription, outcome: { ...outcome, ip: ipGain }, newStats };
   }
 
   applyLearningModifier(roll: number, learningTier: number): number {
     if (learningTier === 2) {
-      // Tier 2: rolls 1-2 become 3
       return roll <= 2 ? 3 : roll;
     }
     if (learningTier === 3) {
-      // Tier 3: rolls 1-2 become 4, rolls 5-6 always best
       if (roll <= 2) return 4;
       if (roll >= 5) return 6;
       return roll;
@@ -394,7 +511,9 @@ export class MoneyMilestonesGame {
     return roll;
   }
 
-  calculateScore(stats: PlayerStats): number {
-    return (stats.assets + stats.cash - stats.debt) + (stats.ip * 50);
+  calculateFinalScore(milestones: { score: number }[]): number {
+    const played = milestones.filter(m => m.score > 0);
+    if (played.length === 0) return 0;
+    return Math.round(played.reduce((sum, m) => sum + m.score, 0) / 7);
   }
 }
