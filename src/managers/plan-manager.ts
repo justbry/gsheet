@@ -1,6 +1,6 @@
 /**
- * PlanManager - Manages Plan markdown system in AGENTSCAPE!C5
- * C1 contains the marker "PLAN.md", C5 contains the plan markdown
+ * PlanManager - Manages Plan markdown in the AGENTSCAPE sheet
+ * Dynamically finds the PLAN.md column by scanning row 1
  * Implements PDR-v4.5 specification
  */
 
@@ -27,12 +27,61 @@ const TASK_REGEX = /^- \[(.)\] (\d+\.\d+(?:\.\d+)?)\s+(.+)$/;
 const PHASE_REGEX = /^### Phase (\d+): (.+)$/;
 
 export class PlanManager {
+  private resolvedFileCell: string | null = null;
+  private resolvedContentCell: string | null = null;
+
   constructor(
     private readonly sheetClient: SheetClient,
     private readonly spreadsheetId: string,
-    private readonly planFileCell: string = 'AGENTSCAPE!C1',      // C1: filename "PLAN.md"
-    private readonly planContentCell: string = 'AGENTSCAPE!C5'    // C5: content (row 5 = Content/MD)
+    private readonly planFileCell: string = 'AGENTSCAPE!C1',      // C1: filename "PLAN.md" (default, overridden by dynamic lookup)
+    private readonly planContentCell: string = 'AGENTSCAPE!C6'    // C6: content (row 6 = Content/MD) (default, overridden by dynamic lookup)
   ) {}
+
+  /**
+   * Dynamically resolve the PLAN.md column by scanning row 1.
+   * Falls back to constructor defaults if not found.
+   */
+  private async resolvePlanCells(): Promise<{ fileCell: string; contentCell: string }> {
+    if (this.resolvedFileCell && this.resolvedContentCell) {
+      return { fileCell: this.resolvedFileCell, contentCell: this.resolvedContentCell };
+    }
+
+    try {
+      const client = await this.sheetClient.getClient();
+      const response = await this.sheetClient.executeWithRetry(async () => {
+        return client.spreadsheets.values.get({
+          spreadsheetId: this.spreadsheetId,
+          range: 'AGENTSCAPE!A1:Z1',
+        });
+      });
+
+      const firstRow = response.data.values?.[0] || [];
+      for (let col = 1; col < firstRow.length; col++) {
+        if (String(firstRow[col] || '').trim() === 'PLAN.md') {
+          const letter = this.columnIndexToLetter(col);
+          this.resolvedFileCell = `AGENTSCAPE!${letter}1`;
+          this.resolvedContentCell = `AGENTSCAPE!${letter}6`;
+          return { fileCell: this.resolvedFileCell, contentCell: this.resolvedContentCell };
+        }
+      }
+    } catch {
+      // Fall through to defaults
+    }
+
+    this.resolvedFileCell = this.planFileCell;
+    this.resolvedContentCell = this.planContentCell;
+    return { fileCell: this.resolvedFileCell, contentCell: this.resolvedContentCell };
+  }
+
+  private columnIndexToLetter(index: number): string {
+    let letter = '';
+    let num = index;
+    while (num >= 0) {
+      letter = String.fromCharCode((num % 26) + 65) + letter;
+      num = Math.floor(num / 26) - 1;
+    }
+    return letter;
+  }
 
   /**
    * Get the current plan from AGENTSCAPE!C5 (column-based format)
@@ -40,13 +89,14 @@ export class PlanManager {
    */
   async getPlan(): Promise<Plan | null> {
     const client = await this.sheetClient.getClient();
+    const { fileCell, contentCell } = await this.resolvePlanCells();
 
-    // Check for filename in C1
+    // Check for filename marker
     try {
       const fileResponse = await this.sheetClient.executeWithRetry(async () => {
         return client.spreadsheets.values.get({
           spreadsheetId: this.spreadsheetId,
-          range: this.planFileCell,
+          range: fileCell,
         });
       });
       const fileName = fileResponse.data.values?.[0]?.[0];
@@ -59,11 +109,11 @@ export class PlanManager {
       return null;
     }
 
-    // Read plan content from C5
+    // Read plan content
     const response = await this.sheetClient.executeWithRetry(async () => {
       return client.spreadsheets.values.get({
         spreadsheetId: this.spreadsheetId,
-        range: this.planContentCell,
+        range: contentCell,
       });
     });
 
@@ -361,10 +411,11 @@ ${phasesMarkdown}
    */
   private async writePlan(markdown: string): Promise<void> {
     const client = await this.sheetClient.getClient();
+    const { contentCell } = await this.resolvePlanCells();
     await this.sheetClient.executeWithRetry(async () => {
       return client.spreadsheets.values.update({
         spreadsheetId: this.spreadsheetId,
-        range: this.planContentCell,
+        range: contentCell,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
           values: [[markdown]],
