@@ -6,6 +6,8 @@
 import type { AgentFile } from '../types';
 import type { AgentScapeManager } from '../managers/agentscape-manager';
 import type { ParsedArgs } from './parser';
+import { SheetAgent } from '../agent';
+import { join } from 'path';
 
 /**
  * List all files in AGENTSCAPE sheet
@@ -171,4 +173,115 @@ export async function cmdShell(
 ): Promise<void> {
   const { startRepl } = await import('./repl');
   await startRepl(agentscape);
+}
+
+/**
+ * Read data from any sheet in the spreadsheet
+ * Requires --sheet flag
+ * Supports --format flag (array or objects)
+ */
+export async function cmdSheetRead(
+  spreadsheetId: string,
+  args: ParsedArgs
+): Promise<void> {
+  const sheetName = args.flags.sheet;
+  if (typeof sheetName !== 'string') {
+    throw new Error('--sheet flag is required for sheet-read command');
+  }
+
+  const format = args.flags.format === 'objects' ? 'objects' : 'array';
+
+  // Create a SheetAgent to read the sheet
+  const agent = await SheetAgent.connect({ spreadsheetId });
+  const result = await agent.read({ sheet: sheetName, format });
+
+  if (args.flags.json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  // Format output based on format type
+  if (format === 'objects') {
+    const data = result.rows as Array<Record<string, unknown>>;
+
+    if (data.length === 0) {
+      console.log(`No data found in sheet: ${sheetName}`);
+      return;
+    }
+
+    // Pretty print objects
+    for (let i = 0; i < data.length; i++) {
+      const obj = data[i];
+      console.log(`\n--- Row ${i + 1} ---`);
+      for (const [key, value] of Object.entries(obj)) {
+        console.log(`${key}: ${value}`);
+      }
+    }
+    console.log(`\nTotal: ${data.length} row(s)`);
+  } else {
+    // Array format - print as table
+    const rows = result.rows as unknown[][];
+
+    if (rows.length === 0) {
+      console.log(`No data found in sheet: ${sheetName}`);
+      return;
+    }
+
+    // Print each row
+    for (const row of rows) {
+      console.log(row.map(cell => String(cell ?? '')).join(' | '));
+    }
+
+    console.log(`\nTotal: ${rows.length} row(s)`);
+  }
+}
+
+/**
+ * Send iMessage using macOS Messages.app
+ * Requires --recipient and --message flags
+ * Requires --confirm flag for safety
+ */
+export async function cmdSendMessage(
+  args: ParsedArgs
+): Promise<void> {
+  const recipient = args.flags.recipient;
+  const message = args.flags.message;
+
+  if (typeof recipient !== 'string') {
+    throw new Error('--recipient flag is required');
+  }
+
+  if (typeof message !== 'string') {
+    throw new Error('--message flag is required');
+  }
+
+  if (!args.flags.confirm) {
+    console.log('⚠️  Preview mode (use --confirm to send):\n');
+    console.log(`To: ${recipient}`);
+    console.log(`Message:\n${message}`);
+    return;
+  }
+
+  // Path to local send-message.ts tool (relative to project root)
+  const sendMessagePath = join(
+    process.cwd(),
+    'examples/imessage-cli/send-message.ts'
+  );
+
+  console.log(`📱 Sending to ${recipient}...`);
+
+  // Call SendMessage.ts with proper argument escaping
+  const proc = Bun.spawn(['bun', sendMessagePath, '--recipient', recipient, '--message', message], {
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+
+  const exitCode = await proc.exited;
+
+  if (exitCode !== 0) {
+    const stderr = await new Response(proc.stderr).text();
+    throw new Error(`Failed to send message: ${stderr}`);
+  }
+
+  console.log('✅ Message sent successfully!');
 }

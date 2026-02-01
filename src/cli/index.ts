@@ -17,7 +17,7 @@ import {
   getHelpText,
   getVersionText,
 } from './parser';
-import { cmdList, cmdRead, cmdWrite, cmdDelete, cmdShell } from './commands';
+import { cmdList, cmdRead, cmdWrite, cmdDelete, cmdShell, cmdSheetRead, cmdSendMessage } from './commands';
 import { validateAgentscape, formatValidationResult } from './commands/validate-agentscape';
 import { initAgentscape, formatInitResult } from './commands/init-agentscape';
 
@@ -45,6 +45,12 @@ async function main() {
     // Validate command and arguments
     validateCommand(parsed);
 
+    // Handle send-message separately (doesn't need spreadsheet)
+    if (parsed.command === 'send-message') {
+      await cmdSendMessage(parsed);
+      process.exit(0);
+    }
+
     // Extract auth options
     const authOptions = extractAuthOptions(parsed.flags);
 
@@ -67,8 +73,10 @@ async function main() {
     // Create AgentScapeManager
     const agentscape = new AgentScapeManager(sheetClient, authOptions.spreadsheetId, planManager);
 
-    // Special handling for init command - don't call initAgentScape first
-    if (parsed.command === 'init') {
+    // Special handling for commands that don't need AGENTSCAPE initialization
+    const skipInit = ['init', 'sheet-read'].includes(parsed.command);
+
+    if (skipInit) {
       await routeCommand(parsed, agentscape, sheetClient, authOptions.spreadsheetId);
     } else {
       // Initialize AGENTSCAPE sheet (idempotent) for other commands
@@ -190,6 +198,10 @@ async function routeCommand(
       if (!validationResult.valid) {
         process.exit(1);
       }
+      break;
+
+    case 'sheet-read':
+      await cmdSheetRead(spreadsheetId, parsed);
       break;
 
     default:

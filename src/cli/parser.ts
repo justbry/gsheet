@@ -23,12 +23,18 @@ const VALID_COMMANDS = [
   'delete', 'rm',
   'shell',
   'validate', 'check',
+  'sheet-read',
+  'send-message',
   'help',
   'version',
 ];
 
 const VALID_FLAGS = [
   '--sheet',
+  '--format',
+  '--recipient',
+  '--message',
+  '--confirm',
   '--content',
   '--file',
   '--desc',
@@ -141,10 +147,29 @@ export function validateCommand(parsed: ParsedArgs): void {
         throw new Error('Command "delete" requires a filename argument');
       }
       break;
+
+    case 'sheet-read':
+      if (!flags.sheet) {
+        throw new Error('Command "sheet-read" requires --sheet flag');
+      }
+      break;
+
+    case 'send-message':
+      if (!flags.recipient) {
+        throw new Error('Command "send-message" requires --recipient flag');
+      }
+      if (!flags.message) {
+        throw new Error('Command "send-message" requires --message flag');
+      }
+      if (!flags.confirm) {
+        throw new Error('Command "send-message" requires --confirm flag for safety');
+      }
+      break;
   }
 
-  // Validate spreadsheet-id is provided (unless it's help/version)
-  if (!flags['spreadsheet-id'] && command !== 'help' && command !== 'version') {
+  // Validate spreadsheet-id is provided (unless it's help/version/send-message)
+  const commandsWithoutSpreadsheetId = ['help', 'version', 'send-message'];
+  if (!flags['spreadsheet-id'] && !commandsWithoutSpreadsheetId.includes(command)) {
     throw new Error('Missing required flag: --spreadsheet-id');
   }
 }
@@ -216,6 +241,8 @@ COMMANDS:
   delete, rm <file>     Delete a file
   shell                 Start interactive REPL shell
   validate, check       Validate AGENTSCAPE structure and format
+  sheet-read            Read any sheet (requires --sheet flag)
+  send-message          Send iMessage (requires --recipient and --message)
   help                  Show this help message
   version               Show version information
 
@@ -224,6 +251,11 @@ OPTIONS:
   --credentials <path>      Path to service account credentials JSON
   --env                     Use CREDENTIALS_CONFIG environment variable (default)
 
+  --sheet <name>            Sheet name (for sheet-read command)
+  --format <type>           Output format: array, objects (default: array)
+  --recipient <phone>       Phone number or contact name (for send-message)
+  --message <text>          Message text to send (for send-message)
+  --confirm                 Confirm sending message (required for send-message)
   --content <text>          File content (for write command)
   --file <path>             Path to local file (for write command)
   --desc <text>             File description (max 50 words)
@@ -271,6 +303,15 @@ EXAMPLES:
 
   # Validate AGENTSCAPE structure
   gsheet validate --spreadsheet-id ABC123
+
+  # Read any sheet in the spreadsheet
+  gsheet sheet-read --sheet Teachers --spreadsheet-id ABC123
+
+  # Read sheet as JSON objects
+  gsheet sheet-read --sheet Teachers --format objects --spreadsheet-id ABC123
+
+  # Send iMessage
+  gsheet send-message --recipient "+15551234567" --message "Hello!" --confirm
 
 AUTHENTICATION:
   By default, the CLI uses the CREDENTIALS_CONFIG environment variable (Base64-encoded
