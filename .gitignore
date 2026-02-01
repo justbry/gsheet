@@ -36,7 +36,10 @@ prompts/archive/*
 .DS_Store
 
 # Auto Claude data directory
-.auto-claude/
+.auto-claude*
+
+# GSD planning directory
+.planning/
 
 # Temporary development files (prevent future clutter)
 # Note: archive/ directory is tracked - these patterns only apply to root and other dirs
