@@ -20,12 +20,13 @@ interface ValidationResult {
       desc: string;
       tags: string;
       dates: string;
+      budget: string;
       contentLength: number;
     }>;
   };
 }
 
-const EXPECTED_LABELS = ['FILE', 'DESC', 'TAGS', 'DATES', 'Content/MD'];
+const EXPECTED_LABELS = ['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD'];
 
 export async function validateAgentscape(
   sheetClient: SheetClient,
@@ -49,7 +50,7 @@ export async function validateAgentscape(
     const response = await sheetClient.executeWithRetry(async () => {
       return client.spreadsheets.values.get({
         spreadsheetId,
-        range: 'AGENTSCAPE!A1:Z5', // Read first 5 rows, up to column Z
+        range: 'AGENTSCAPE!A1:Z6', // Read first 6 rows, up to column Z
       });
     });
     sheetData = response.data.values || [];
@@ -67,7 +68,7 @@ export async function validateAgentscape(
 
   // Step 2: Validate Column A (rows 1-5 should be field labels)
   const columnA: string[] = [];
-  for (let row = 0; row < 5; row++) {
+  for (let row = 0; row < 6; row++) {
     const value = String(sheetData[row]?.[0] || '').trim();
     columnA.push(value);
   }
@@ -83,13 +84,13 @@ export async function validateAgentscape(
     }
   }
 
-  // Check if Column A has data beyond row 5
-  if (sheetData.length > 5) {
-    for (let row = 5; row < sheetData.length; row++) {
+  // Check if Column A has data beyond row 6
+  if (sheetData.length > 6) {
+    for (let row = 6; row < sheetData.length; row++) {
       const value = String(sheetData[row]?.[0] || '').trim();
       if (value) {
         result.warnings.push(
-          `Column A row ${row + 1}: Unexpected data "${value}". Column A should only have labels in rows 1-5.`
+          `Column A row ${row + 1}: Unexpected data "${value}". Column A should only have labels in rows 1-6.`
         );
       }
     }
@@ -111,11 +112,12 @@ export async function validateAgentscape(
       continue;
     }
 
-    // Extract file metadata (rows 1-5)
+    // Extract file metadata (rows 1-6)
     const desc = String(sheetData[1]?.[col] || '').trim();
     const tags = String(sheetData[2]?.[col] || '').trim();
     const dates = String(sheetData[3]?.[col] || '').trim();
-    const content = String(sheetData[4]?.[col] || '').trim();
+    const budget = String(sheetData[4]?.[col] || '').trim();
+    const content = String(sheetData[5]?.[col] || '').trim();
 
     result.structure.files.push({
       column: columnIndexToLetter(col),
@@ -123,6 +125,7 @@ export async function validateAgentscape(
       desc,
       tags,
       dates,
+      budget,
       contentLength: content.length,
     });
 
@@ -141,17 +144,17 @@ export async function validateAgentscape(
 
     if (!content) {
       result.warnings.push(
-        `Column ${columnIndexToLetter(col)} (${filename}): Missing content (row 5)`
+        `Column ${columnIndexToLetter(col)} (${filename}): Missing content (row 6)`
       );
     }
 
-    // Check if there's data beyond row 5
-    if (sheetData.length > 5) {
-      for (let row = 5; row < sheetData.length; row++) {
+    // Check if there's data beyond row 6
+    if (sheetData.length > 6) {
+      for (let row = 6; row < sheetData.length; row++) {
         const value = String(sheetData[row]?.[col] || '').trim();
         if (value) {
           result.warnings.push(
-            `Column ${columnIndexToLetter(col)} (${filename}) row ${row + 1}: Unexpected data. Files should only use rows 1-5.`
+            `Column ${columnIndexToLetter(col)} (${filename}) row ${row + 1}: Unexpected data. Files should only use rows 1-6.`
           );
           break; // Only report once per file
         }
@@ -240,6 +243,7 @@ export function formatValidationResult(result: ValidationResult): string {
     lines.push(`    DESC: ${file.desc || '(empty)'}`);
     lines.push(`    TAGS: ${file.tags || '(empty)'}`);
     lines.push(`    DATES: ${file.dates || '(empty)'}`);
+    lines.push(`    BUDGET: ${file.budget || '(empty)'}`);
     lines.push(`    Content: ${file.contentLength} characters`);
     lines.push('');
   });
@@ -272,7 +276,8 @@ export function formatValidationResult(result: ValidationResult): string {
   lines.push('2  DESC      agent        plan         [desc...]');
   lines.push('3  TAGS      system       agent,plan   [tags...]');
   lines.push('4  DATES     2026-01-21   2026-01-21   [dates...]');
-  lines.push('5  Content   # Agent...   # Plan: ...  [content...]');
+  lines.push('5  BUDGET    2.5K         dynamic      [budget...]');
+  lines.push('6  Content   # Agent...   # Plan: ...  [content...]');
   lines.push('');
 
   lines.push('═'.repeat(60));

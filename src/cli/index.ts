@@ -19,6 +19,7 @@ import {
 } from './parser';
 import { cmdList, cmdRead, cmdWrite, cmdDelete, cmdShell } from './commands';
 import { validateAgentscape, formatValidationResult } from './commands/validate-agentscape';
+import { initAgentscape, formatInitResult } from './commands/init-agentscape';
 
 /**
  * Main CLI function
@@ -66,11 +67,16 @@ async function main() {
     // Create AgentScapeManager
     const agentscape = new AgentScapeManager(sheetClient, authOptions.spreadsheetId, planManager);
 
-    // Initialize AGENTSCAPE sheet (idempotent)
-    await agentscape.initAgentScape();
+    // Special handling for init command - don't call initAgentScape first
+    if (parsed.command === 'init') {
+      await routeCommand(parsed, agentscape, sheetClient, authOptions.spreadsheetId);
+    } else {
+      // Initialize AGENTSCAPE sheet (idempotent) for other commands
+      await agentscape.initAgentScape();
 
-    // Route to command handler
-    await routeCommand(parsed, agentscape, sheetClient, authOptions.spreadsheetId);
+      // Route to command handler
+      await routeCommand(parsed, agentscape, sheetClient, authOptions.spreadsheetId);
+    }
 
     process.exit(0);
   } catch (error) {
@@ -133,6 +139,22 @@ async function routeCommand(
   const { command } = parsed;
 
   switch (command) {
+    case 'init':
+      // Initialize or fix AGENTSCAPE structure
+      const initResult = await initAgentscape(
+        sheetClient,
+        spreadsheetId,
+        {
+          force: parsed.flags.force === true,
+          dryRun: parsed.flags['dry-run'] === true,
+        }
+      );
+      console.log(formatInitResult(initResult));
+      if (!initResult.success) {
+        process.exit(1);
+      }
+      break;
+
     case 'ls':
     case 'list':
       await cmdList(agentscape, parsed);

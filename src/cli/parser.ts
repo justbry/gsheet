@@ -16,6 +16,7 @@ export interface AuthOptions {
 }
 
 const VALID_COMMANDS = [
+  'init',
   'ls', 'list',
   'read', 'cat',
   'write', 'edit',
@@ -38,6 +39,8 @@ const VALID_FLAGS = [
   '--env',
   '--json',
   '--metadata',
+  '--force',
+  '--dry-run',
   '--help', '-h',
   '--version', '-v',
 ];
@@ -203,6 +206,7 @@ USAGE:
   gsheet [COMMAND] [OPTIONS]
 
 COMMANDS:
+  init                  Initialize or fix AGENTSCAPE sheet structure
   ls, list              List all files in AGENTSCAPE sheet
   read, cat <file>      Read a file's content
   write <file>          Write a file (requires --content or --file)
@@ -225,11 +229,22 @@ OPTIONS:
 
   --json                    Output as JSON (for list command)
   --metadata                Show metadata (for read command)
+  --force                   Force re-initialization even if valid (for init)
+  --dry-run                 Show what would be done without making changes (for init)
 
   -h, --help                Show help
   -v, --version             Show version
 
 EXAMPLES:
+  # Initialize AGENTSCAPE structure
+  gsheet init --spreadsheet-id ABC123
+
+  # Check what init would do (without making changes)
+  gsheet init --spreadsheet-id ABC123 --dry-run
+
+  # Force re-initialization
+  gsheet init --spreadsheet-id ABC123 --force
+
   # List all files (using spreadsheet ID)
   gsheet ls --spreadsheet-id ABC123
 
@@ -247,6 +262,9 @@ EXAMPLES:
 
   # Interactive shell
   gsheet shell --spreadsheet-id ABC123
+
+  # Validate AGENTSCAPE structure
+  gsheet validate --spreadsheet-id ABC123
 
 AUTHENTICATION:
   By default, the CLI uses the CREDENTIALS_CONFIG environment variable (Base64-encoded
