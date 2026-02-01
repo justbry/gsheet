@@ -153,5 +153,6 @@ export interface AgentFile {
   desc: string;           // Description/type (e.g., "md", "profile")
   tags: string;           // Tags (comma-separated)
   dates: string;          // Dates (e.g., created, modified)
+  budget?: string;        // Context budget (e.g., "2.5K", "dynamic", "0")
   content: string;        // File content (markdown)
 }

@@ -3,7 +3,7 @@
  * Treats Google Sheets as a file system, storing markdown files with metadata
  *
  * Sheet format:
- * | FILE          | DESC | TAGS | DATES | Content/MD |
+ * | FILE          | DESC | TAGS | DATES | BUDGET | Content/MD |
  * |---------------|------|------|-------|------------|
  * | AGENT-PROFILE.md | md | ...  | ...   | # Agent... |
  * | RESEARCH.md      | md | ...  | ...   | # Research |
@@ -20,7 +20,7 @@ import { ValidationError } from '../errors';
 export const AGENTSCAPE_SHEET = 'AGENTSCAPE';
 
 // Column-based format: Column A has labels, columns B+ have files
-const COLUMN_LABELS = ['FILE', 'DESC', 'TAGS', 'DATES', 'Content/MD'];
+const COLUMN_LABELS = ['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD'];
 
 type SheetFormat = 'row-based' | 'column-based';
 
@@ -136,7 +136,8 @@ export class AgentScapeManager {
         desc: String(row[1] || ''),
         tags: String(row[2] || ''),
         dates: String(row[3] || ''),
-        content: String(row[4] || ''),
+        budget: String(row[4] || ''),
+        content: String(row[5] || ''),
       });
     }
 
@@ -149,13 +150,14 @@ export class AgentScapeManager {
    * Row 2: DESC | desc1 | desc2 | desc3
    * Row 3: TAGS | tags1 | tags2 | tags3
    * Row 4: DATES | dates1 | dates2 | dates3
-   * Row 5: Content/MD | content1 | content2 | content3
+   * Row 5: BUDGET | budget1 | budget2 | budget3
+   * Row 6: Content/MD | content1 | content2 | content3
    */
   private parseColumnBasedFormat(rows: unknown[][]): AgentFile[] {
     const files: AgentFile[] = [];
 
-    if (rows.length < 5) {
-      // Need at least 5 rows (FILE, DESC, TAGS, DATES, Content/MD)
+    if (rows.length < 6) {
+      // Need at least 6 rows (FILE, DESC, TAGS, DATES, BUDGET, Content/MD)
       return files;
     }
 
@@ -163,17 +165,18 @@ export class AgentScapeManager {
     const descRow = rows[1];
     const tagsRow = rows[2];
     const datesRow = rows[3];
-    const contentRow = rows[4];
+    const budgetRow = rows[4];
+    const contentRow = rows[5];
 
-    // Start from column B (index 1) since column A has the labels (FILE, DESC, TAGS, DATES, Content/MD)
+    // Start from column B (index 1) since column A has the labels
     for (let col = 1; col < fileRow.length; col++) {
       const filename = String(fileRow[col] || '').trim();
 
       // Skip empty columns or label columns
       if (!filename) continue;
 
-      // Skip if this looks like a label (FILE, DESC, TAGS, DATES, Content/MD)
-      if (['FILE', 'DESC', 'TAGS', 'DATES', 'Content/MD'].includes(filename)) {
+      // Skip if this looks like a label
+      if (COLUMN_LABELS.includes(filename)) {
         continue;
       }
 
@@ -182,6 +185,7 @@ export class AgentScapeManager {
         desc: String(descRow[col] || ''),
         tags: String(tagsRow[col] || ''),
         dates: String(datesRow[col] || ''),
+        budget: String(budgetRow[col] || ''),
         content: String(contentRow[col] || ''),
       });
     }
@@ -230,14 +234,37 @@ export class AgentScapeManager {
       throw new ValidationError('Filename cannot be empty');
     }
 
-    // Special case: delegate PLAN.md to PlanManager
+    // Special case: PLAN.md writes content via column-based lookup
     if (file.file === 'PLAN.md') {
-      // Write to AGENTSCAPE!F5 (content row in column-based format)
       const client = await this.sheetClient.getClient();
+      const sheetName = await this.getActualSheetName();
+
+      // Find PLAN.md column dynamically
+      const response = await this.sheetClient.executeWithRetry(async () => {
+        return client.spreadsheets.values.get({
+          spreadsheetId: this.spreadsheetId,
+          range: `${sheetName}!A1:Z1`,
+        });
+      });
+
+      const firstRow = response.data.values?.[0] || [];
+      let planCol = -1;
+      for (let col = 1; col < firstRow.length; col++) {
+        if (String(firstRow[col] || '').trim() === 'PLAN.md') {
+          planCol = col;
+          break;
+        }
+      }
+
+      if (planCol === -1) {
+        throw new ValidationError('PLAN.md column not found in AGENTSCAPE sheet');
+      }
+
+      const colLetter = this.columnIndexToLetter(planCol);
       await this.sheetClient.executeWithRetry(async () => {
         return client.spreadsheets.values.update({
           spreadsheetId: this.spreadsheetId,
-          range: 'AGENTSCAPE!F5',
+          range: `${sheetName}!${colLetter}6`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
             values: [[file.content]],
@@ -288,10 +315,10 @@ export class AgentScapeManager {
       await this.sheetClient.executeWithRetry(async () => {
         return client.spreadsheets.values.update({
           spreadsheetId: this.spreadsheetId,
-          range: `${sheetName}!A${rowIndex}:E${rowIndex}`,
+          range: `${sheetName}!A${rowIndex}:F${rowIndex}`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
-            values: [[file.file, file.desc, file.tags, file.dates, file.content]],
+            values: [[file.file, file.desc, file.tags, file.dates, file.budget || '', file.content]],
           },
         });
       });
@@ -300,10 +327,10 @@ export class AgentScapeManager {
       await this.sheetClient.executeWithRetry(async () => {
         return client.spreadsheets.values.append({
           spreadsheetId: this.spreadsheetId,
-          range: `${sheetName}!A:E`,
+          range: `${sheetName}!A:F`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
-            values: [[file.file, file.desc, file.tags, file.dates, file.content]],
+            values: [[file.file, file.desc, file.tags, file.dates, file.budget || '', file.content]],
           },
         });
       });
@@ -316,8 +343,8 @@ export class AgentScapeManager {
    * Write file in column-based format (each file is a column)
    */
   private async writeFileColumnBased(file: AgentFile, rows: unknown[][], client: any, sheetName: string): Promise<AgentFile> {
-    if (rows.length < 5) {
-      throw new ValidationError('Column-based sheet must have at least 5 rows (FILE, DESC, TAGS, DATES, Content/MD)');
+    if (rows.length < 6) {
+      throw new ValidationError('Column-based sheet must have at least 6 rows (FILE, DESC, TAGS, DATES, BUDGET, Content/MD)');
     }
 
     const fileRow = rows[0];
@@ -338,7 +365,7 @@ export class AgentScapeManager {
       columnIndex = fileRow.length;
       for (let col = 1; col < fileRow.length; col++) {
         const filename = String(fileRow[col] || '').trim();
-        if (!filename || ['FILE', 'DESC', 'TAGS', 'DATES', 'Content/MD'].includes(filename)) {
+        if (!filename || COLUMN_LABELS.includes(filename)) {
           columnIndex = col;
           break;
         }
@@ -348,11 +375,11 @@ export class AgentScapeManager {
     // Convert column index to letter (A=0, B=1, C=2, etc.)
     const columnLetter = this.columnIndexToLetter(columnIndex);
 
-    // Write the 5 values vertically to this column
+    // Write the 6 values vertically to this column
     await this.sheetClient.executeWithRetry(async () => {
       return client.spreadsheets.values.update({
         spreadsheetId: this.spreadsheetId,
-        range: `${sheetName}!${columnLetter}1:${columnLetter}5`,
+        range: `${sheetName}!${columnLetter}1:${columnLetter}6`,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
           values: [
@@ -360,6 +387,7 @@ export class AgentScapeManager {
             [file.desc],
             [file.tags],
             [file.dates],
+            [file.budget || ''],
             [file.content],
           ],
         },
@@ -478,7 +506,7 @@ export class AgentScapeManager {
       await this.sheetClient.executeWithRetry(async () => {
         return client.spreadsheets.values.update({
           spreadsheetId: this.spreadsheetId,
-          range: `${AGENTSCAPE_SHEET}!A1:A5`,
+          range: `${AGENTSCAPE_SHEET}!A1:A6`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
             values: COLUMN_LABELS.map(label => [label]),
@@ -486,12 +514,12 @@ export class AgentScapeManager {
         });
       });
 
-      // Initialize AGENTS.md in column B (B1:B5) - guaranteed first file
+      // Initialize AGENTS.md in column B (B1:B6) - guaranteed first file
       const agentContext = await this.loadDefaultAgentContext();
       await this.sheetClient.executeWithRetry(async () => {
         return client.spreadsheets.values.update({
           spreadsheetId: this.spreadsheetId,
-          range: `${AGENTSCAPE_SHEET}!B1:B5`,
+          range: `${AGENTSCAPE_SHEET}!B1:B6`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
             values: [
@@ -499,18 +527,19 @@ export class AgentScapeManager {
               ['agent'],             // B2: description
               ['system,context'],    // B3: tags
               [new Date().toISOString().split('T')[0] || ''],  // B4: date
-              [agentContext]         // B5: content
+              ['2.5K'],              // B5: budget
+              [agentContext]         // B6: content
             ],
           },
         });
       });
 
-      // Initialize PLAN.md in column C (C1:C5) - special handling
+      // Initialize PLAN.md in column C (C1:C6) - special handling
       const starterPlan = this.generateStarterPlanMarkdown();
       await this.sheetClient.executeWithRetry(async () => {
         return client.spreadsheets.values.update({
           spreadsheetId: this.spreadsheetId,
-          range: `${AGENTSCAPE_SHEET}!C1:C5`,
+          range: `${AGENTSCAPE_SHEET}!C1:C6`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
             values: [
@@ -518,7 +547,8 @@ export class AgentScapeManager {
               ['plan'],              // C2: description
               ['agent,plan'],        // C3: tags
               [new Date().toISOString().split('T')[0] || ''],  // C4: date
-              [starterPlan]          // C5: content
+              ['dynamic'],           // C5: budget
+              [starterPlan]          // C6: content
             ],
           },
         });
@@ -531,7 +561,7 @@ export class AgentScapeManager {
       const response = await this.sheetClient.executeWithRetry(async () => {
         return client.spreadsheets.values.get({
           spreadsheetId: this.spreadsheetId,
-          range: `${sheetName}!A1:A5`,
+          range: `${sheetName}!A1:A6`,
         });
       });
 
@@ -546,7 +576,7 @@ export class AgentScapeManager {
         // Labels exist but don't match - check if it's incompatible
         throw new Error(
           `Sheet "${sheetName}" exists but has an incompatible structure. ` +
-          `Expected column labels: ${COLUMN_LABELS.join(', ')} in column A (rows 1-5). ` +
+          `Expected column labels: ${COLUMN_LABELS.join(', ')} in column A (rows 1-6). ` +
           `Please either: 1) Delete the "${sheetName}" sheet to allow creation of a new one, ` +
           `or 2) Use a different spreadsheet.`
         );
@@ -557,7 +587,7 @@ export class AgentScapeManager {
         await this.sheetClient.executeWithRetry(async () => {
           return client.spreadsheets.values.update({
             spreadsheetId: this.spreadsheetId,
-            range: `${sheetName}!A1:A5`,
+            range: `${sheetName}!A1:A6`,
             valueInputOption: 'USER_ENTERED',
             requestBody: {
               values: COLUMN_LABELS.map(label => [label]),
@@ -587,7 +617,7 @@ export class AgentScapeManager {
         await this.sheetClient.executeWithRetry(async () => {
           return client.spreadsheets.values.update({
             spreadsheetId: this.spreadsheetId,
-            range: `${sheetName}!C1:C5`,
+            range: `${sheetName}!C1:C6`,
             valueInputOption: 'USER_ENTERED',
             requestBody: {
               values: [
@@ -595,7 +625,8 @@ export class AgentScapeManager {
                 ['plan'],              // C2: description
                 ['agent,plan'],        // C3: tags
                 [new Date().toISOString().split('T')[0] || ''],  // C4: date
-                [starterPlan]          // C5: content
+                ['dynamic'],           // C5: budget
+                [starterPlan]          // C6: content
               ],
             },
           });
@@ -623,7 +654,7 @@ export class AgentScapeManager {
         await this.sheetClient.executeWithRetry(async () => {
           return client.spreadsheets.values.update({
             spreadsheetId: this.spreadsheetId,
-            range: `${sheetName}!B1:B5`,
+            range: `${sheetName}!B1:B6`,
             valueInputOption: 'USER_ENTERED',
             requestBody: {
               values: [
@@ -631,7 +662,8 @@ export class AgentScapeManager {
                 ['agent'],             // B2: description
                 ['system,context'],    // B3: tags
                 [new Date().toISOString().split('T')[0] || ''],  // B4: date
-                [agentContext]         // B5: content
+                ['2.5K'],              // B5: budget
+                [agentContext]         // B6: content
               ],
             },
           });

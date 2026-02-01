@@ -1,4 +1,4 @@
-import { test, expect, describe } from 'bun:test';
+import { test, expect, describe } from 'vitest';
 
 // Test the column index to letter conversion logic
 function columnIndexToLetter(index: number): string {

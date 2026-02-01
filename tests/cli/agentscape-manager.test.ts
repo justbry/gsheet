@@ -67,7 +67,7 @@ describe('AgentScapeManager', () => {
   describe('listFiles()', () => {
     it('should return empty array when sheet is empty', async () => {
       const { sheetClient } = createMockSheetClient({
-        [AGENTSCAPE_SHEET]: { data: { values: [['FILE', 'DESC', 'TAGS', 'DATES', 'Content/MD']] } },
+        [AGENTSCAPE_SHEET]: { data: { values: [['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD']] } },
       });
       const planManager = createMockPlanManager();
       const manager = new AgentScapeManager(sheetClient, 'test-id', planManager);
@@ -94,9 +94,9 @@ describe('AgentScapeManager', () => {
         [AGENTSCAPE_SHEET]: {
           data: {
             values: [
-              ['FILE', 'DESC', 'TAGS', 'DATES', 'Content/MD'],
-              ['NOTES.md', 'notes', 'tag1,tag2', '2025-01-15', '# Notes\n\nContent here'],
-              ['RESEARCH.md', 'research', 'research', '2025-01-16', '# Research\n\nMore content'],
+              ['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD'],
+              ['NOTES.md', 'notes', 'tag1,tag2', '2025-01-15', '1K', '# Notes\n\nContent here'],
+              ['RESEARCH.md', 'research', 'research', '2025-01-16', '2K', '# Research\n\nMore content'],
             ],
           },
         },
@@ -112,6 +112,7 @@ describe('AgentScapeManager', () => {
         desc: 'notes',
         tags: 'tag1,tag2',
         dates: '2025-01-15',
+        budget: '1K',
         content: '# Notes\n\nContent here',
       });
       expect(files[1]).toEqual({
@@ -119,6 +120,7 @@ describe('AgentScapeManager', () => {
         desc: 'research',
         tags: 'research',
         dates: '2025-01-16',
+        budget: '2K',
         content: '# Research\n\nMore content',
       });
     });
@@ -138,8 +140,8 @@ describe('AgentScapeManager', () => {
         [AGENTSCAPE_SHEET]: {
           data: {
             values: [
-              ['FILE', 'DESC', 'TAGS', 'DATES', 'Content/MD'],
-              ['NOTES.md', 'notes', '', '', '# Notes'],
+              ['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD'],
+              ['NOTES.md', 'notes', '', '', '', '# Notes'],
             ],
           },
         },
@@ -157,8 +159,8 @@ describe('AgentScapeManager', () => {
         [AGENTSCAPE_SHEET]: {
           data: {
             values: [
-              ['FILE', 'DESC', 'TAGS', 'DATES', 'Content/MD'],
-              ['NOTES.md', 'notes', 'tag1', '2025-01-15', '# Notes\n\nContent'],
+              ['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD'],
+              ['NOTES.md', 'notes', 'tag1', '2025-01-15', '1K', '# Notes\n\nContent'],
             ],
           },
         },
@@ -173,6 +175,7 @@ describe('AgentScapeManager', () => {
         desc: 'notes',
         tags: 'tag1',
         dates: '2025-01-15',
+        budget: '1K',
         content: '# Notes\n\nContent',
       });
     });
@@ -220,7 +223,7 @@ describe('AgentScapeManager', () => {
       const { sheetClient, mockAppend } = createMockSheetClient({
         [AGENTSCAPE_SHEET]: {
           data: {
-            values: [['FILE', 'DESC', 'TAGS', 'DATES', 'Content/MD']],
+            values: [['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD']],
           },
         },
       });
@@ -239,7 +242,7 @@ describe('AgentScapeManager', () => {
 
       expect(mockAppend).toHaveBeenCalledWith(
         expect.objectContaining({
-          range: `${AGENTSCAPE_SHEET}!A:E`,
+          range: `${AGENTSCAPE_SHEET}!A:F`,
         })
       );
     });
@@ -249,8 +252,8 @@ describe('AgentScapeManager', () => {
         [AGENTSCAPE_SHEET]: {
           data: {
             values: [
-              ['FILE', 'DESC', 'TAGS', 'DATES', 'Content/MD'],
-              ['EXISTING.md', 'old', 'old-tag', '2025-01-15', '# Old Content'],
+              ['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD'],
+              ['EXISTING.md', 'old', 'old-tag', '2025-01-15', '', '# Old Content'],
             ],
           },
         },
@@ -270,13 +273,15 @@ describe('AgentScapeManager', () => {
 
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          range: `${AGENTSCAPE_SHEET}!A2:E2`,
+          range: `${AGENTSCAPE_SHEET}!A2:F2`,
         })
       );
     });
 
     it('should delegate PLAN.md to PlanManager', async () => {
-      const { sheetClient, mockUpdate } = createMockSheetClient();
+      const { sheetClient, mockUpdate } = createMockSheetClient({
+        'AGENTSCAPE!A1:Z1': { data: { values: [['FILE', 'AGENTS.md', 'PLAN.md']] } },
+      });
       const planManager = createMockPlanManager();
       const manager = new AgentScapeManager(sheetClient, 'test-id', planManager);
 
@@ -290,15 +295,10 @@ describe('AgentScapeManager', () => {
 
       await manager.writeFile(file);
 
-      // Should write to AGENTSCAPE!F5 (plan content) and B1 (marker)
+      // Should write to AGENTSCAPE!C6 (PLAN.md is in column C)
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          range: 'AGENTSCAPE!F5',
-        })
-      );
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          range: 'AGENTSCAPE!F5',
+          range: 'AGENTSCAPE!C6',
         })
       );
     });
@@ -326,7 +326,7 @@ describe('AgentScapeManager', () => {
       const { sheetClient } = createMockSheetClient({
         [AGENTSCAPE_SHEET]: {
           data: {
-            values: [['FILE', 'DESC', 'TAGS', 'DATES', 'Content/MD']],
+            values: [['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD']],
           },
         },
       });
@@ -343,8 +343,8 @@ describe('AgentScapeManager', () => {
         [AGENTSCAPE_SHEET]: {
           data: {
             values: [
-              ['FILE', 'DESC', 'TAGS', 'DATES', 'Content/MD'],
-              ['DELETE_ME.md', 'delete', '', '', '# Delete'],
+              ['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD'],
+              ['DELETE_ME.md', 'delete', '', '', '', '# Delete'],
             ],
           },
         },
@@ -411,9 +411,9 @@ describe('AgentScapeManager', () => {
       // Should write column labels (column-based format)
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          range: `${AGENTSCAPE_SHEET}!A1:A5`,
+          range: `${AGENTSCAPE_SHEET}!A1:A6`,
           requestBody: expect.objectContaining({
-            values: [['FILE'], ['DESC'], ['TAGS'], ['DATES'], ['Content/MD']],
+            values: [['FILE'], ['DESC'], ['TAGS'], ['DATES'], ['BUDGET'], ['Content/MD']],
           }),
         })
       );
@@ -421,14 +421,14 @@ describe('AgentScapeManager', () => {
       // Should write AGENTS.md file
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          range: `${AGENTSCAPE_SHEET}!B1:B5`,
+          range: `${AGENTSCAPE_SHEET}!B1:B6`,
         })
       );
 
       // Should write PLAN.md file
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          range: `${AGENTSCAPE_SHEET}!F1:F5`,
+          range: `${AGENTSCAPE_SHEET}!C1:C6`,
         })
       );
     });
