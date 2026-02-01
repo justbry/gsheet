@@ -13,7 +13,8 @@
       "Bash(obsidian-cli:*)",
       "Bash(lsof:*)",
       "WebFetch(domain:github.com)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:developers.telnyx.com)"
     ]
   }
 }
