@@ -375,6 +375,83 @@ describe('SheetAgent', () => {
     });
   });
 
+  describe('clear()', () => {
+    let agent: SheetAgent;
+    let mockClear: ReturnType<typeof vi.fn>;
+
+    beforeEach(async () => {
+      mockClear = vi.fn().mockResolvedValue({
+        data: {
+          clearedRange: 'Sheet1!A1:C10',
+        },
+      });
+
+      const { google } = await import('googleapis');
+      (google.sheets as any).mockImplementation(() => ({
+        spreadsheets: {
+          values: {
+            clear: mockClear,
+          },
+        },
+      }));
+
+      agent = new SheetAgent({
+        spreadsheetId: 'test-spreadsheet-id',
+        credentials: mockCredentials,
+      });
+    });
+
+    it('should throw ValidationError when sheet is not provided', async () => {
+      await expect(agent.clear({ range: 'A1:C10' } as any)).rejects.toThrow(ValidationError);
+    });
+
+    it('should throw ValidationError when range is not provided', async () => {
+      await expect(agent.clear({ sheet: 'Sheet1' } as any)).rejects.toThrow(ValidationError);
+    });
+
+    it('should clear specified range successfully', async () => {
+      const result = await agent.clear({
+        sheet: 'Sheet1',
+        range: 'A1:C10',
+      });
+
+      expect(result.clearedRange).toBe('Sheet1!A1:C10');
+      expect(mockClear).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spreadsheetId: 'test-spreadsheet-id',
+          range: 'Sheet1!A1:C10',
+        })
+      );
+    });
+
+    it('should accept sheet as number (index)', async () => {
+      await agent.clear({
+        sheet: 0,
+        range: 'A1:B5',
+      });
+
+      expect(mockClear).toHaveBeenCalledWith(
+        expect.objectContaining({
+          range: 'Sheet1!A1:B5',
+        })
+      );
+    });
+
+    it('should handle different range formats', async () => {
+      await agent.clear({
+        sheet: 'Data',
+        range: 'B2:D20',
+      });
+
+      expect(mockClear).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spreadsheetId: 'test-spreadsheet-id',
+          range: 'Data!B2:D20',
+        })
+      );
+    });
+  });
+
   describe('search()', () => {
     let agent: SheetAgent;
     let mockGet: ReturnType<typeof vi.fn>;
@@ -715,6 +792,174 @@ describe('SheetAgent', () => {
 
       expect(results[0].rows).toHaveLength(3);
       expect(results[0].rows[0]).toEqual(['name', 'email']);
+    });
+  });
+
+  describe('deleteRows()', () => {
+    let agent: SheetAgent;
+    let mockBatchUpdate: ReturnType<typeof vi.fn>;
+
+    beforeEach(async () => {
+      mockBatchUpdate = vi.fn().mockResolvedValue({
+        data: {},
+      });
+
+      const { google } = await import('googleapis');
+      (google.sheets as any).mockImplementation(() => ({
+        spreadsheets: {
+          get: vi.fn().mockResolvedValue({
+            data: {
+              sheets: [
+                { properties: { sheetId: 0, title: 'Sheet1' } },
+                { properties: { sheetId: 1, title: 'Data' } },
+              ],
+            },
+          }),
+          batchUpdate: mockBatchUpdate,
+        },
+      }));
+
+      agent = new SheetAgent({
+        spreadsheetId: 'test-spreadsheet-id',
+        credentials: mockCredentials,
+      });
+    });
+
+    it('should throw ValidationError when sheet is not provided', async () => {
+      await expect(agent.deleteRows({ startRow: 5 } as any)).rejects.toThrow(ValidationError);
+    });
+
+    it('should throw ValidationError when startRow is not provided', async () => {
+      await expect(agent.deleteRows({ sheet: 'Sheet1' } as any)).rejects.toThrow(ValidationError);
+    });
+
+    it('should throw ValidationError when startRow is less than 1', async () => {
+      await expect(agent.deleteRows({ sheet: 'Sheet1', startRow: 0 })).rejects.toThrow(ValidationError);
+    });
+
+    it('should throw ValidationError when endRow is less than startRow', async () => {
+      await expect(agent.deleteRows({ sheet: 'Sheet1', startRow: 5, endRow: 3 })).rejects.toThrow(ValidationError);
+    });
+
+    it('should delete a single row successfully', async () => {
+      const result = await agent.deleteRows({
+        sheet: 'Sheet1',
+        startRow: 5,
+      });
+
+      expect(result.deletedRows).toBe(1);
+      expect(mockBatchUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spreadsheetId: 'test-spreadsheet-id',
+          requestBody: {
+            requests: [
+              {
+                deleteDimension: {
+                  range: {
+                    sheetId: 0,
+                    dimension: 'ROWS',
+                    startIndex: 4, // 0-indexed
+                    endIndex: 5,
+                  },
+                },
+              },
+            ],
+          },
+        })
+      );
+    });
+
+    it('should delete multiple rows successfully', async () => {
+      const result = await agent.deleteRows({
+        sheet: 'Sheet1',
+        startRow: 5,
+        endRow: 9,
+      });
+
+      expect(result.deletedRows).toBe(5);
+      expect(mockBatchUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spreadsheetId: 'test-spreadsheet-id',
+          requestBody: {
+            requests: [
+              {
+                deleteDimension: {
+                  range: {
+                    sheetId: 0,
+                    dimension: 'ROWS',
+                    startIndex: 4, // 0-indexed
+                    endIndex: 9,
+                  },
+                },
+              },
+            ],
+          },
+        })
+      );
+    });
+
+    it('should accept sheet as number (index)', async () => {
+      const result = await agent.deleteRows({
+        sheet: 0,
+        startRow: 2,
+      });
+
+      expect(result.deletedRows).toBe(1);
+      expect(mockBatchUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestBody: {
+            requests: [
+              {
+                deleteDimension: {
+                  range: {
+                    sheetId: 0,
+                    dimension: 'ROWS',
+                    startIndex: 1,
+                    endIndex: 2,
+                  },
+                },
+              },
+            ],
+          },
+        })
+      );
+    });
+
+    it('should work with different sheet names', async () => {
+      const result = await agent.deleteRows({
+        sheet: 'Data',
+        startRow: 3,
+        endRow: 5,
+      });
+
+      expect(result.deletedRows).toBe(3);  // Rows 3, 4, 5 (inclusive)
+      expect(mockBatchUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requestBody: {
+            requests: [
+              {
+                deleteDimension: {
+                  range: {
+                    sheetId: 1, // Data sheet has sheetId: 1
+                    dimension: 'ROWS',
+                    startIndex: 2,
+                    endIndex: 5,
+                  },
+                },
+              },
+            ],
+          },
+        })
+      );
+    });
+
+    it('should throw ValidationError when sheet is not found', async () => {
+      await expect(
+        agent.deleteRows({
+          sheet: 'NonExistentSheet',
+          startRow: 1,
+        })
+      ).rejects.toThrow(ValidationError);
     });
   });
 

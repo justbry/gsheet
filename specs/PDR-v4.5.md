@@ -17,7 +17,7 @@ AI agents using Google Sheets lose all context on restart. There's no standard w
 
 A <30KB TypeScript library providing:
 
-- **AGENT.md** — System prompt and context in a single cell
+- **AGENTS.md** — System prompt and context in a single cell
 - **PLAN.md** — Markdown-based goal tracking with checkboxes
 - **Minimal sheet tools** — 5 focused operations
 
@@ -31,7 +31,7 @@ This library embraces:
 - **Plan-driven execution** — PLAN.md as external memory and state tracker
 - **Human-readable state** — Everything visible and editable in sheets
 - **Minimal surface area** — 12 agent methods (6 plan + 6 sheet) + 2 properties
-- **Auto-initialization** — System loads AGENT.md and creates AGENT_BASE on connect
+- **Auto-initialization** — System loads AGENTS.md and creates AGENTSCAPE on connect
 
 ### Key Metrics
 
@@ -79,11 +79,11 @@ This library embraces:
 │             │                                               │
 │             ▼                                               │
 │  ┌─────────────────────────────────────────────────────────┐│
-│  │                   AGENT_BASE Sheet                      ││
+│  │                   AGENTSCAPE Sheet                      ││
 │  │  ┌───────────────────────────┬─────────────────────────┐││
 │  │  │            A              │            B            │││
 │  │  ├───────────────────────────┼─────────────────────────┤││
-│  │  │ AGENT.md Contents         │ PLAN.md Contents        │←1││
+│  │  │ AGENTS.md Contents         │ PLAN.md Contents        │←1││
 │  │  ├───────────────────────────┼─────────────────────────┤││
 │  │  │ # Sales Report Agent      │ # Plan: Q4 Report       │←2││
 │  │  │                           │                         │││
@@ -116,28 +116,45 @@ This library embraces:
 
 ## Workspace Structure
 
-Single sheet stores all agent state:
+The AGENTSCAPE sheet stores all agent state using a **column-based format**:
 
-| Cell | Content | Purpose |
-|------|---------|---------|
-| `AGENT_BASE!A1` | `"AGENT.md Contents"` | Marker |
-| `AGENT_BASE!A2` | Full AGENT.md markdown | System prompt, capabilities, constraints |
-| `AGENT_BASE!B1` | `"PLAN.md Contents"` | Marker |
-| `AGENT_BASE!B2` | Full PLAN.md markdown | Goals, tasks, progress, notes |
+**Column A:** Row labels (FILE, DESC, TAGS, DATES, Content/MD)
+
+**Columns B onwards:** Each column is a file
+
+| Row | Label | Purpose |
+|-----|-------|---------|
+| 1 | FILE | Filename (e.g., AGENTS.md, RESEARCH.md, PLAN.md) |
+| 2 | DESC | Description |
+| 3 | TAGS | Tags |
+| 4 | DATES | Dates |
+| 5 | Content/MD | File content (markdown) |
+
+**Example structure:**
+```
+     A          B            C              D
+1  FILE      AGENTS.md    PLAN.md        RESEARCH.md
+2  DESC      agent        plan           research
+3  TAGS      system       agent,plan     notes
+4  DATES     2026-01-21   2026-01-21     2026-01-21
+5  Content   # Agent...   # Plan: ...    # Research...
+```
 
 **Why this layout?**
-- **Column A** = Who the agent is (stable)
-- **Column B** = What the agent is doing (changes frequently)
-- Both human-readable and editable
+- **Column-based** = Each file is a column, easy to add/remove files
+- **Column C (PLAN.md)** = Special handling, delegates to PlanManager for reads/writes
+- All files human-readable and editable
+- AGENTS.md stored as a regular file (column B), loaded into `agent.system` on connect
+- Consistent structure for all files (5 rows per file)
 - Single sheet to inspect/debug
 
 ---
 
-## AGENT.md System
+## AGENTS.md System
 
 ### Purpose
 
-The AGENT.md provides persistent system prompt context that:
+The AGENTS.md provides persistent system prompt context that:
 - Defines agent identity and capabilities
 - Sets constraints and rules
 - Specifies communication style
@@ -286,11 +303,11 @@ These happen automatically inside the library—**not agent methods**:
 // INTERNAL: Called automatically on SheetAgent construction
 // Agent never calls this directly
 async function initialize(): Promise<void> {
-  // 1. Check if AGENT_BASE sheet exists
+  // 1. Check if AGENTSCAPE sheet exists
   // 2. If missing: create sheet, write markers to A1/B1
-  // 3. If A2 empty: write default AGENT.md
+  // 3. If A2 empty: write default AGENTS.md
   // 4. If B2 empty: write starter PLAN.md
-  // 5. Load AGENT.md into this.agentContext (available as property)
+  // 5. Load AGENTS.md into this.agentContext (available as property)
 }
 ```
 
@@ -300,14 +317,14 @@ async function initialize(): Promise<void> {
 - Silent — no logs unless error
 - Idempotent — safe if sheet already exists  
 - Non-destructive — never overwrites existing content
-- Caches AGENT.md — available as `agent.system` property
+- Caches AGENTS.md — available as `agent.system` property
 
 This means agent code is simple:
 
 ```typescript
 const agent = await SheetAgent.connect({ spreadsheetId, keyFile });
 
-// AGENT.md is already loaded and available
+// AGENTS.md is already loaded and available
 console.log(agent.system);  // "# Sales Report Agent\n\nYou are..."
 console.log(agent.spreadsheetId);  // "1abc123..."
 
@@ -322,8 +339,8 @@ const plan = await agent.getPlan();
 ```typescript
 interface SheetAgent {
   /**
-   * The AGENT.md content, loaded at session start.
-   * Read-only. Edit AGENT_BASE!A2 directly to change.
+   * The AGENTS.md content, loaded at session start.
+   * Read-only. Edit AGENTSCAPE (AGENTS.md file) directly to change.
    */
   readonly system: string;
 
@@ -342,7 +359,7 @@ interface SheetAgent {
 ```typescript
 interface PlanManager {
   /**
-   * Read current plan from AGENT_BASE!B2.
+   * Read current plan from AGENTSCAPE!C5.
    */
   getPlan(): Promise<Plan>;
 
@@ -359,7 +376,7 @@ interface PlanManager {
   getReviewTasks(): Promise<PlanTask[]>;
 
   /**
-   * Create new plan, replacing existing.
+   * Create new plan, replacing existing in AGENTSCAPE!C5
    */
   createPlan(title: string, goal: string, phases: PhaseInput[]): Promise<void>;
 
@@ -517,7 +534,7 @@ const agent = await SheetAgent.connect({
 console.log(agent.spreadsheetId);  // "1abc123..."
 console.log(agent.system);  // "# Sales Report Agent\n\nYou are..."
 
-// Workspace (AGENT_BASE) was auto-created if missing
+// Workspace (AGENTSCAPE) was auto-created if missing
 ```
 
 ### Create Plan
@@ -735,13 +752,13 @@ Compare: google-spreadsheet = 500KB+
 - Auth handling (credentials, keyFile, env var)
 - Basic read/write/listSheets
 - Error types
-- AGENT_BASE sheet creation
+- AGENTSCAPE sheet creation
 
 **Gate:** Build passes, <30KB
 
 ### Week 2: Plan System
 - PLAN.md parser (regex-based)
-- Auto-init + AGENT.md loading in `.connect()`
+- Auto-init + AGENTS.md loading in `.connect()`
 - `.system` and `.spreadsheetId` properties
 - getPlan, createPlan, updateTask, appendNotes
 - getNextTask, getReviewTasks
@@ -787,7 +804,7 @@ Compare: google-spreadsheet = 500KB+
 | Aspect | v4.0 | v4.5 |
 |--------|------|------|
 | Bundle target | 35KB | 30KB |
-| Column A | Memory (key-value) | AGENT.md (system prompt) |
+| Column A | Memory (key-value) | AGENTS.md (system prompt) |
 | Column B | PLAN.md | PLAN.md |
 | Initialization | Manual `initPlan()` | **Auto via `.connect()`** |
 | Agent context | Manual `getAgent()` | **Auto-loaded as `.system` property** |
@@ -837,7 +854,7 @@ console.log(`Working on: ${agent.spreadsheetId}`);
 
 | State Type | Location |
 |------------|----------|
-| Agent identity | AGENT.md (A2) |
+| Agent identity | AGENTS.md (A2) |
 | Current goals | PLAN.md phases |
 | Task status | PLAN.md checkboxes |
 | Working variables | PLAN.md Notes section |
@@ -848,11 +865,11 @@ console.log(`Working on: ${agent.spreadsheetId}`);
 ## Quick Reference
 
 ```typescript
-// Connect (auto-initializes workspace, loads AGENT.md)
+// Connect (auto-initializes workspace, loads AGENTS.md)
 const agent = await SheetAgent.connect({ spreadsheetId, keyFile });
 
 // Properties (read-only)
-agent.system;         // AGENT.md content
+agent.system;         // AGENTS.md content
 agent.spreadsheetId;  // Sheet ID for logging
 
 // Plan workflow
@@ -886,7 +903,7 @@ await agent.createSheet('NewTab');
 
 | Type | Name | Description |
 |------|------|-------------|
-| **Property** | `system` | AGENT.md content (read-only) |
+| **Property** | `system` | AGENTS.md content (read-only) |
 | | `spreadsheetId` | Connected sheet ID |
 | **Plan** | `getPlan()` | Read plan from B2 |
 | | `createPlan()` | Create/replace plan |
@@ -906,13 +923,19 @@ await agent.createSheet('NewTab');
 ## Workspace Layout
 
 ```
-AGENT_BASE
-┌─────────────────────────────┬─────────────────────────────┐
-│             A               │             B               │
-├─────────────────────────────┼─────────────────────────────┤
-│ AGENT.md Contents           │ PLAN.md Contents            │ ← Row 1 (markers)
-├─────────────────────────────┼─────────────────────────────┤
-│ # Sales Report Agent        │ # Plan: Q4 Report           │ ← Row 2 (content)
+AGENTSCAPE
+┌─────────────────────────────┬─────────────────────────────┬─────────────────────────────┐
+│             A               │             B               │             C               │
+├─────────────────────────────┼─────────────────────────────┼─────────────────────────────┤
+│ FILE                        │ AGENTS.md                   │ PLAN.md                     │ ← Row 1 (markers)
+├─────────────────────────────┼─────────────────────────────┼─────────────────────────────┤
+│ DESC                        │ agent                       │ plan                        │ ← Row 2 (description)
+├─────────────────────────────┼─────────────────────────────┼─────────────────────────────┤
+│ TAGS                        │ system                      │ agent,plan                  │ ← Row 3 (tags)
+├─────────────────────────────┼─────────────────────────────┼─────────────────────────────┤
+│ DATES                       │ 2026-01-21                  │ 2026-01-21                  │ ← Row 4 (dates)
+├─────────────────────────────┼─────────────────────────────┼─────────────────────────────┤
+│ Content/MD                  │ # Sales Report Agent        │ # Plan: Q4 Report           │ ← Row 5 (content)
 │                             │                             │
 │ You are a spreadsheet       │ Goal: Generate summary...   │
 │ assistant that analyzes     │                             │

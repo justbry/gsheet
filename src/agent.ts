@@ -15,6 +15,10 @@ import type {
   PhaseInput,
   BatchReadQuery,
   TaskUpdate,
+  ClearOptions,
+  ClearResult,
+  DeleteRowsOptions,
+  DeleteRowsResult,
 } from './types';
 import { WorkspaceSheets } from './schemas';
 import { ValidationError, PermissionError } from './errors';
@@ -159,6 +163,30 @@ export class SheetAgent {
   private getSheetRange(sheet: string | number, range?: string): string {
     const sheetRef = typeof sheet === 'number' ? `Sheet${sheet + 1}` : sheet;
     return range ? `${sheetRef}!${range}` : sheetRef;
+  }
+
+  /**
+   * Get sheet ID by name or index
+   * @private
+   */
+  private async getSheetId(sheet: string | number): Promise<number | null> {
+    const client = await this.getClient();
+
+    const response = await this.executeWithRetry(async () => {
+      return client.spreadsheets.get({
+        spreadsheetId: this.options.spreadsheetId,
+      });
+    });
+
+    // Convert sheet reference to name for lookup
+    const sheetName = typeof sheet === 'number' ? `Sheet${sheet + 1}` : sheet;
+    const sheetNameLower = sheetName.toLowerCase();
+
+    const sheetData = response.data.sheets?.find(
+      (s) => s.properties?.title?.toLowerCase() === sheetNameLower
+    );
+
+    return sheetData?.properties?.sheetId ?? null;
   }
 
   /**
@@ -715,6 +743,116 @@ This is a starter plan. Once you confirm your goal, I'll create a detailed plan 
       updatedColumns: response.data.updatedColumns ?? 0,
       updatedCells: response.data.updatedCells ?? 0,
       updatedRange: response.data.updatedRange ?? range,
+    };
+  }
+
+  /**
+   * Clear data from a cell range
+   */
+  async clear(options: ClearOptions): Promise<ClearResult> {
+    // Validate options
+    if (!options.sheet && options.sheet !== 0) {
+      throw new ValidationError('options.sheet is required', [
+        'options.sheet: Expected string or number, received undefined',
+      ]);
+    }
+
+    if (!options.range) {
+      throw new ValidationError('options.range is required', [
+        'options.range: Expected string, received undefined',
+      ]);
+    }
+
+    const range = this.getSheetRange(options.sheet, options.range);
+    const client = await this.getClient();
+
+    // Execute with retry wrapper
+    const response = await this.executeWithRetry(async () => {
+      return client.spreadsheets.values.clear({
+        spreadsheetId: this.options.spreadsheetId,
+        range,
+      });
+    });
+
+    return {
+      clearedRange: response.data.clearedRange ?? range,
+    };
+  }
+
+  /**
+   * Delete rows from a sheet
+   * Deletes one or more rows from the specified sheet
+   *
+   * @param options - DeleteRowsOptions specifying sheet and row range
+   * @returns DeleteRowsResult with count of deleted rows
+   * @throws ValidationError if options are invalid
+   *
+   * @example
+   * // Delete a single row
+   * await agent.deleteRows({ sheet: 'Sheet1', startRow: 5 });
+   *
+   * @example
+   * // Delete multiple rows
+   * await agent.deleteRows({ sheet: 'Sheet1', startRow: 5, endRow: 10 });
+   */
+  async deleteRows(options: DeleteRowsOptions): Promise<DeleteRowsResult> {
+    // Validate options
+    if (!options.sheet && options.sheet !== 0) {
+      throw new ValidationError('options.sheet is required', [
+        'options.sheet: Expected string or number, received undefined',
+      ]);
+    }
+
+    if (typeof options.startRow !== 'number' || options.startRow < 1) {
+      throw new ValidationError('options.startRow must be a positive number (1-indexed)', [
+        `options.startRow: Expected positive number, received ${options.startRow}`,
+      ]);
+    }
+
+    if (options.endRow !== undefined && options.endRow < options.startRow) {
+      throw new ValidationError('options.endRow must be >= startRow', [
+        `options.endRow: Expected >= ${options.startRow}, received ${options.endRow}`,
+      ]);
+    }
+
+    // Get sheet ID
+    const sheetId = await this.getSheetId(options.sheet);
+    if (sheetId === null) {
+      throw new ValidationError(`Sheet not found: ${options.sheet}`);
+    }
+
+    const client = await this.getClient();
+
+    // Convert 1-indexed row numbers to 0-indexed for API
+    // startIndex is inclusive, endIndex is exclusive
+    const startIndex = options.startRow - 1;
+    const endIndex = options.endRow ? options.endRow : options.startRow;
+
+    // Execute with retry wrapper
+    await this.executeWithRetry(async () => {
+      return client.spreadsheets.batchUpdate({
+        spreadsheetId: this.options.spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              deleteDimension: {
+                range: {
+                  sheetId: sheetId,
+                  dimension: 'ROWS',
+                  startIndex: startIndex,
+                  endIndex: endIndex,
+                },
+              },
+            },
+          ],
+        },
+      });
+    });
+
+    const deletedRows = endIndex - startIndex;
+
+    return {
+      deletedRows,
     };
   }
 

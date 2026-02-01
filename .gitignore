@@ -38,10 +38,11 @@ prompts/archive/*
 # Auto Claude data directory
 .auto-claude/
 
-# Auto Claude generated files
-.auto-claude-security.json
-.auto-claude-status
-.claude_settings.json
-.worktrees/
-.security-key
-logs/security/
+# Temporary development files (prevent future clutter)
+# Note: archive/ directory is tracked - these patterns only apply to root and other dirs
+/*ANALYSIS*.md
+/*EXPLORATION*.md
+/DEMO_*.md
+/demo-*.ts
+/analyze-*.ts
+/explore-*.ts

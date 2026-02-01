@@ -1,11 +1,10 @@
 /**
- * PlanManager - Manages Plan markdown system in AGENT_BASE!B2
- * B1 contains the marker "PLAN.md Contents", B2 contains the plan markdown
+ * PlanManager - Manages Plan markdown system in AGENTSCAPE!C5
+ * C1 contains the marker "PLAN.md", C5 contains the plan markdown
  * Implements PDR-v4.5 specification
  */
 
 import type { Plan, PlanTask, PhaseInput, TaskStatus, Phase, PlanAnalysis, TaskUpdate } from '../types';
-import { WorkspaceSheets } from '../schemas';
 import type { SheetClient } from '../core/sheet-client';
 
 const STATUS_MAP: Record<string, TaskStatus> = {
@@ -31,36 +30,36 @@ export class PlanManager {
   constructor(
     private readonly sheetClient: SheetClient,
     private readonly spreadsheetId: string,
-    private readonly planMarkerCell: string = `${WorkspaceSheets.AGENT_BASE}!B1`,
-    private readonly planContentCell: string = `${WorkspaceSheets.AGENT_BASE}!B2`
+    private readonly planFileCell: string = 'AGENTSCAPE!C1',      // C1: filename "PLAN.md"
+    private readonly planContentCell: string = 'AGENTSCAPE!C5'    // C5: content (row 5 = Content/MD)
   ) {}
 
   /**
-   * Get the current plan from AGENT_BASE!B2
-   * First checks B1 for marker "PLAN.md Contents", returns null if not initialized
+   * Get the current plan from AGENTSCAPE!C5 (column-based format)
+   * First checks C1 for filename "PLAN.md", returns null if not initialized
    */
   async getPlan(): Promise<Plan | null> {
     const client = await this.sheetClient.getClient();
 
-    // Check for marker in B1
+    // Check for filename in C1
     try {
-      const markerResponse = await this.sheetClient.executeWithRetry(async () => {
+      const fileResponse = await this.sheetClient.executeWithRetry(async () => {
         return client.spreadsheets.values.get({
           spreadsheetId: this.spreadsheetId,
-          range: this.planMarkerCell,
+          range: this.planFileCell,
         });
       });
-      const markerValue = markerResponse.data.values?.[0]?.[0];
-      if (markerValue !== 'PLAN.md Contents') {
+      const fileName = fileResponse.data.values?.[0]?.[0];
+      if (fileName !== 'PLAN.md') {
         // Not initialized
         return null;
       }
     } catch (error) {
-      // Marker cell doesn't exist
+      // File cell doesn't exist
       return null;
     }
 
-    // Read plan content from B2
+    // Read plan content from C5
     const response = await this.sheetClient.executeWithRetry(async () => {
       return client.spreadsheets.values.get({
         spreadsheetId: this.spreadsheetId,
@@ -358,7 +357,7 @@ ${phasesMarkdown}
   }
 
   /**
-   * Write plan markdown to AGENT_BASE!B2
+   * Write plan markdown to AGENTSCAPE!C5 (column-based format)
    */
   private async writePlan(markdown: string): Promise<void> {
     const client = await this.sheetClient.getClient();

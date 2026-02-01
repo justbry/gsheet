@@ -21,6 +21,7 @@ const VALID_COMMANDS = [
   'write', 'edit',
   'delete', 'rm',
   'shell',
+  'validate', 'check',
   'help',
   'version',
 ];
@@ -143,13 +144,49 @@ export function validateCommand(parsed: ParsedArgs): void {
 }
 
 /**
+ * Extract spreadsheet ID from a Google Sheets URL or return the ID as-is
+ * Supports formats:
+ * - https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit...
+ * - SPREADSHEET_ID (raw ID)
+ * @param input - URL or spreadsheet ID
+ * @returns Extracted spreadsheet ID
+ */
+export function extractSpreadsheetId(input: string): string {
+  // If it's already just an ID (no slashes or protocol), return as-is
+  if (!input.includes('/') && !input.includes(':')) {
+    return input;
+  }
+
+  // Try to extract from URL
+  const urlPattern = /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+  const match = input.match(urlPattern);
+
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  // If no match but looks like a URL, throw helpful error
+  if (input.includes('docs.google.com') || input.startsWith('http')) {
+    throw new Error(
+      `Could not extract spreadsheet ID from URL: ${input}\n` +
+      'Expected format: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/...'
+    );
+  }
+
+  // Otherwise assume it's an ID
+  return input;
+}
+
+/**
  * Extract auth options from parsed flags
  * @param flags - Parsed flags
  * @returns Auth options object
  */
 export function extractAuthOptions(flags: Record<string, string | boolean>): AuthOptions {
+  const rawSpreadsheetId = typeof flags['spreadsheet-id'] === 'string' ? flags['spreadsheet-id'] : undefined;
+
   return {
-    spreadsheetId: typeof flags['spreadsheet-id'] === 'string' ? flags['spreadsheet-id'] : undefined,
+    spreadsheetId: rawSpreadsheetId ? extractSpreadsheetId(rawSpreadsheetId) : undefined,
     credentials: typeof flags.credentials === 'string' ? flags.credentials : undefined,
     env: flags.env === true ? true : undefined,
   };
@@ -171,11 +208,12 @@ COMMANDS:
   write <file>          Write a file (requires --content or --file)
   delete, rm <file>     Delete a file
   shell                 Start interactive REPL shell
+  validate, check       Validate AGENTSCAPE structure and format
   help                  Show this help message
   version               Show version information
 
 OPTIONS:
-  --spreadsheet-id <id>     Google Sheets spreadsheet ID (required)
+  --spreadsheet-id <id|url> Google Sheets spreadsheet ID or URL (required)
   --credentials <path>      Path to service account credentials JSON
   --env                     Use CREDENTIALS_CONFIG environment variable (default)
 
@@ -192,20 +230,23 @@ OPTIONS:
   -v, --version             Show version
 
 EXAMPLES:
-  # List all files
-  gsheet ls --spreadsheet-id=ABC123
+  # List all files (using spreadsheet ID)
+  gsheet ls --spreadsheet-id ABC123
+
+  # List all files (using URL)
+  gsheet ls --spreadsheet-id "https://docs.google.com/spreadsheets/d/ABC123/edit"
 
   # Read a file
-  gsheet read PLAN.md --spreadsheet-id=ABC123
+  gsheet read PLAN.md --spreadsheet-id ABC123
 
   # Write a file
-  gsheet write NOTES.md --content "# My Notes" --spreadsheet-id=ABC123
+  gsheet write NOTES.md --content "# My Notes" --spreadsheet-id ABC123
 
   # Write from local file
-  gsheet write RESEARCH.md --file ./research.md --spreadsheet-id=ABC123
+  gsheet write RESEARCH.md --file ./research.md --spreadsheet-id ABC123
 
   # Interactive shell
-  gsheet shell --spreadsheet-id=ABC123
+  gsheet shell --spreadsheet-id ABC123
 
 AUTHENTICATION:
   By default, the CLI uses the CREDENTIALS_CONFIG environment variable (Base64-encoded

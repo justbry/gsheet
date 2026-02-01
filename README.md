@@ -2,6 +2,9 @@
 
 A lightweight TypeScript library that turns Google Sheets into a powerful agent workspace. Read, write, search data and manage task plans—all backed by a human-readable spreadsheet.
 
+[![npm version](https://badge.fury.io/js/gsheet.svg)](https://www.npmjs.com/package/gsheet)
+[![CI](https://github.com/justbry/gsheet/actions/workflows/ci.yml/badge.svg)](https://github.com/justbry/gsheet/actions/workflows/ci.yml)
+
 **6.6KB gzipped** | **132 tests passing** | **Full TypeScript support**
 
 ## Why Google Sheets?
@@ -15,6 +18,10 @@ A lightweight TypeScript library that turns Google Sheets into a powerful agent 
 ## Installation
 
 ```bash
+# Using npm
+npm install gsheet zod
+
+# Using bun
 bun add gsheet zod
 ```
 

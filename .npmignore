@@ -1,0 +1,73 @@
+# Source files (we publish dist/ only)
+src/
+tests/
+specs/
+
+# Development directories
+.auto-claude/
+.claude/
+.agent/
+.planning/
+.logs/
+.github/
+examples/
+prompts/
+scripts/
+
+# Build and config files
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+vitest.integration.config.ts
+ralph.yml
+
+# Documentation (dev-focused)
+TESTING_PLAN.md
+TESTING_SUMMARY.md
+TEST_RESULTS.md
+RALPH_PROMPT_v2.md
+
+# Environment and secrets
+.env
+.env.*
+
+# Dependencies
+node_modules/
+bun.lock
+
+# Output and artifacts (build produces dist/)
+out/
+coverage/
+*.lcov
+*.tgz
+
+# Logs
+logs/
+*.log
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Caches
+.cache/
+.eslintcache
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Security
+.auto-claude-security.json
+.auto-claude-status
+.claude_settings.json

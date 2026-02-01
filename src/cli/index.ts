@@ -5,7 +5,6 @@
  * Command-line interface for AgentScape file system
  */
 
-import { SheetAgent } from '../agent';
 import { SheetClient } from '../core/sheet-client';
 import { PlanManager } from '../managers/plan-manager';
 import { AgentScapeManager } from '../managers/agentscape-manager';
@@ -19,6 +18,7 @@ import {
   getVersionText,
 } from './parser';
 import { cmdList, cmdRead, cmdWrite, cmdDelete, cmdShell } from './commands';
+import { validateAgentscape, formatValidationResult } from './commands/validate-agentscape';
 
 /**
  * Main CLI function
@@ -70,7 +70,7 @@ async function main() {
     await agentscape.initAgentScape();
 
     // Route to command handler
-    await routeCommand(parsed, agentscape);
+    await routeCommand(parsed, agentscape, sheetClient, authOptions.spreadsheetId);
 
     process.exit(0);
   } catch (error) {
@@ -126,7 +126,9 @@ async function resolveCredentials(authOptions: {
  */
 async function routeCommand(
   parsed: { command: string; args: string[]; flags: Record<string, string | boolean> },
-  agentscape: AgentScapeManager
+  agentscape: AgentScapeManager,
+  sheetClient: SheetClient,
+  spreadsheetId: string
 ): Promise<void> {
   const { command } = parsed;
 
@@ -153,6 +155,19 @@ async function routeCommand(
 
     case 'shell':
       await cmdShell(agentscape, parsed);
+      break;
+
+    case 'validate':
+    case 'check':
+      // Validate AGENTSCAPE structure
+      const validationResult = await validateAgentscape(
+        sheetClient,
+        spreadsheetId
+      );
+      console.log(formatValidationResult(validationResult));
+      if (!validationResult.valid) {
+        process.exit(1);
+      }
       break;
 
     default:

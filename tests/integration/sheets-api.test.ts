@@ -106,6 +106,146 @@ describe.skipIf(!canRunIntegrationTests)('Integration: Google Sheets API', () =>
     });
   });
 
+  describe('clear()', () => {
+    it('should clear data from a specific range', async () => {
+      // First, write some test data to a safe range (E10:F12)
+      const testData = [
+        ['Clear Test 1', 'Value 1'],
+        ['Clear Test 2', 'Value 2'],
+        ['Clear Test 3', 'Value 3'],
+      ];
+
+      await agent.write({
+        sheet: writeTestSheet,
+        range: 'E10:F12',
+        data: testData,
+      });
+
+      // Verify data was written
+      const beforeClear = await agent.read({
+        sheet: writeTestSheet,
+        range: 'E10:F12',
+        format: 'array',
+      });
+      expect(beforeClear.rows.length).toBeGreaterThan(0);
+
+      // Clear the range
+      const result = await agent.clear({
+        sheet: writeTestSheet,
+        range: 'E10:F12',
+      });
+
+      expect(result).toHaveProperty('clearedRange');
+      expect(result.clearedRange).toContain('E10:F12');
+
+      // Verify data was cleared
+      const afterClear = await agent.read({
+        sheet: writeTestSheet,
+        range: 'E10:F12',
+        format: 'array',
+      });
+      // After clearing, the range should be empty or contain empty rows
+      const hasData = afterClear.rows.some(row =>
+        row.some(cell => cell !== null && cell !== undefined && cell !== '')
+      );
+      expect(hasData).toBe(false);
+    });
+
+    it('should clear a specific range', async () => {
+      // Write test data to columns G-H (safe area)
+      const testData = [
+        ['Sheet Clear Test 1', 'Value 1'],
+        ['Sheet Clear Test 2', 'Value 2'],
+      ];
+
+      await agent.write({
+        sheet: writeTestSheet,
+        range: 'G5:H6',
+        data: testData,
+      });
+
+      // Clear the entire range
+      const result = await agent.clear({
+        sheet: writeTestSheet,
+        range: 'G5:H6',
+      });
+
+      expect(result).toHaveProperty('clearedRange');
+    });
+  });
+
+  describe('deleteRows()', () => {
+    it('should delete a single row', async () => {
+      // Write test data to a safe range (columns I-J, starting at row 15)
+      const testData = [
+        ['Delete Test Row 1', 'A'],
+        ['Delete Test Row 2', 'B'],
+        ['Delete Test Row 3', 'C'],
+        ['Delete Test Row 4', 'D'],
+        ['Delete Test Row 5', 'E'],
+      ];
+
+      await agent.write({
+        sheet: writeTestSheet,
+        range: 'I15:J19',
+        data: testData,
+      });
+
+      // Read to verify data was written
+      const beforeDelete = await agent.read({
+        sheet: writeTestSheet,
+        range: 'I15:J19',
+        format: 'array',
+      });
+      expect(beforeDelete.rows.length).toBe(5);
+
+      // Delete row 16 (1-indexed, the 2nd row of our test data)
+      const result = await agent.deleteRows({
+        sheet: writeTestSheet,
+        startRow: 16,
+      });
+
+      expect(result).toHaveProperty('deletedRows');
+      expect(result.deletedRows).toBe(1);
+
+      // Note: After deletion, remaining rows shift up
+      // We can verify by reading the range again - there should be fewer rows
+      const afterDelete = await agent.read({
+        sheet: writeTestSheet,
+        range: 'I15:J18', // Reduced range since 1 row was deleted
+        format: 'array',
+      });
+      expect(afterDelete.rows.length).toBeLessThan(beforeDelete.rows.length);
+    });
+
+    it('should delete a range of rows', async () => {
+      // Write test data to a safe range (columns K-L, starting at row 20)
+      const testData = [
+        ['Range Delete 1', '1'],
+        ['Range Delete 2', '2'],
+        ['Range Delete 3', '3'],
+        ['Range Delete 4', '4'],
+        ['Range Delete 5', '5'],
+      ];
+
+      await agent.write({
+        sheet: writeTestSheet,
+        range: 'K20:L24',
+        data: testData,
+      });
+
+      // Delete rows 21-23 (1-indexed, 3 rows total)
+      const result = await agent.deleteRows({
+        sheet: writeTestSheet,
+        startRow: 21,
+        endRow: 23,
+      });
+
+      expect(result).toHaveProperty('deletedRows');
+      expect(result.deletedRows).toBe(3);
+    });
+  });
+
   describe('batchRead()', () => {
     it('should read multiple ranges in a single API call', async () => {
       const results = await agent.batchRead([

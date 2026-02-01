@@ -1,5 +1,5 @@
 /**
- * Type definitions for g-sheet-agent-io (PDR-v4.5)
+ * Type definitions for gsheet (PDR-v4.5)
  */
 
 // Service account credentials structure

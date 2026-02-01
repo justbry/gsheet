@@ -188,7 +188,7 @@ function App() {
   return (
     <div className="app-container">
       <header className="app-header">
-        <h1>g-sheet-agent-io Demo</h1>
+        <h1>gsheet Demo</h1>
         <div className="header-info">
           <span className={`connection-indicator ${connected ? 'connected' : 'disconnected'}`}>
             {connected ? '● Connected' : '○ Disconnected'}

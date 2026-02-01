@@ -290,15 +290,15 @@ describe('AgentScapeManager', () => {
 
       await manager.writeFile(file);
 
-      // Should write to AGENT_BASE!B2 (plan content) and B1 (marker)
+      // Should write to AGENTSCAPE!F5 (plan content) and B1 (marker)
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          range: 'AGENT_BASE!B2',
+          range: 'AGENTSCAPE!F5',
         })
       );
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          range: 'AGENT_BASE!B1',
+          range: 'AGENTSCAPE!F5',
         })
       );
     });
@@ -380,7 +380,7 @@ describe('AgentScapeManager', () => {
 
       // Mock that sheet doesn't exist
       const mockClientObj = await sheetClient.getClient();
-      vi.mocked(mockClientObj.spreadsheets.get).mockResolvedValue({
+      (mockClientObj.spreadsheets.get as any).mockResolvedValue({
         data: {
           sheets: [{ properties: { title: 'Sheet1', sheetId: 0 } }],
         },
@@ -408,10 +408,27 @@ describe('AgentScapeManager', () => {
         })
       );
 
-      // Should write headers
+      // Should write column labels (column-based format)
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          range: `${AGENTSCAPE_SHEET}!A1:E1`,
+          range: `${AGENTSCAPE_SHEET}!A1:A5`,
+          requestBody: expect.objectContaining({
+            values: [['FILE'], ['DESC'], ['TAGS'], ['DATES'], ['Content/MD']],
+          }),
+        })
+      );
+
+      // Should write AGENTS.md file
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          range: `${AGENTSCAPE_SHEET}!B1:B5`,
+        })
+      );
+
+      // Should write PLAN.md file
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          range: `${AGENTSCAPE_SHEET}!F1:F5`,
         })
       );
     });
