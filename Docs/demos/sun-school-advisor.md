@@ -1,3 +1,8 @@
+---
+spreadsheet: https://docs.google.com/spreadsheets/d/1EJh-PTWiBLgYHTbiSfwmJdeJ1W-iQ-H5WiHEN9WPpu8/edit?gid=1431121461#gid=1431121461
+spreadsheet_id: 1EJh-PTWiBLgYHTbiSfwmJdeJ1W-iQ-H5WiHEN9WPpu8
+---
+
 # Sun School Advisor
 
 Agent-driven scheduling and analysis for Sunday School classes. Scans a multi-month schedule for unassigned teaching slots, matches teachers by language, and balances workloads.
