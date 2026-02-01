@@ -3,9 +3,14 @@ import { WorkspaceSheets } from "../src/schemas";
 
 describe("Schemas", () => {
   describe("WorkspaceSheets", () => {
-    it("should be empty (AGENT_BASE removed in favor of AGENTSCAPE)", () => {
+    it("should contain only AGENTSCAPE", () => {
       const keys = Object.keys(WorkspaceSheets);
-      expect(keys).toHaveLength(0);
+      expect(keys).toHaveLength(1);
+      expect(keys).toContain('AGENTSCAPE');
+    });
+
+    it("should have correct value", () => {
+      expect(WorkspaceSheets.AGENTSCAPE).toBe('AGENTSCAPE');
     });
   });
 });

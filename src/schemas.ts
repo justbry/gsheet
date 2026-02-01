@@ -1,9 +1,10 @@
 /**
- * Workspace constants for PDR-v4.5
- * Note: AGENT_BASE sheet removed in favor of AGENTSCAPE
+ * Workspace constants
  */
 
-// Workspace sheets enum - kept for backward compatibility (empty)
-export const WorkspaceSheets = {} as const;
+// Workspace sheets enum
+export const WorkspaceSheets = {
+  AGENTSCAPE: 'AGENTSCAPE',
+} as const;
 
 export type WorkspaceSheet = (typeof WorkspaceSheets)[keyof typeof WorkspaceSheets];

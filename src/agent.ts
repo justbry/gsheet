@@ -140,7 +140,7 @@ export class SheetAgent {
       const response = await this.executeWithRetry(async () => {
         return client.spreadsheets.values.get({
           spreadsheetId: this.options.spreadsheetId,
-          range: `${WorkspaceSheets.AGENT_BASE}!A2`,
+          range: `${WorkspaceSheets.AGENTSCAPE}!A2`,
         });
       });
       this._system = (response.data.values?.[0]?.[0] as string) || '';
@@ -499,7 +499,7 @@ This is a starter plan. Once you confirm your goal, I'll create a detailed plan 
       const markerResponse = await this.executeWithRetry(async () => {
           return client.spreadsheets.values.get({
           spreadsheetId: this.options.spreadsheetId,
-          range: `${WorkspaceSheets.AGENT_BASE}!A1`,
+          range: `${WorkspaceSheets.AGENTSCAPE}!A1`,
         });
       });
       const markerValue = markerResponse.data.values?.[0]?.[0];
@@ -515,7 +515,7 @@ This is a starter plan. Once you confirm your goal, I'll create a detailed plan 
       await this.executeWithRetry(async () => {
           return client.spreadsheets.values.update({
           spreadsheetId: this.options.spreadsheetId,
-          range: `${WorkspaceSheets.AGENT_BASE}!A1`,
+          range: `${WorkspaceSheets.AGENTSCAPE}!A1`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
             values: [['AGENT.md Contents']],
@@ -528,7 +528,7 @@ This is a starter plan. Once you confirm your goal, I'll create a detailed plan 
       await this.executeWithRetry(async () => {
           return client.spreadsheets.values.update({
           spreadsheetId: this.options.spreadsheetId,
-          range: `${WorkspaceSheets.AGENT_BASE}!A2`,
+          range: `${WorkspaceSheets.AGENTSCAPE}!A2`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
             values: [[agentContext]],
@@ -543,7 +543,7 @@ This is a starter plan. Once you confirm your goal, I'll create a detailed plan 
       const planMarkerResponse = await this.executeWithRetry(async () => {
           return client.spreadsheets.values.get({
           spreadsheetId: this.options.spreadsheetId,
-          range: `${WorkspaceSheets.AGENT_BASE}!B1`,
+          range: `${WorkspaceSheets.AGENTSCAPE}!B1`,
         });
       });
       const planMarkerValue = planMarkerResponse.data.values?.[0]?.[0];
@@ -559,7 +559,7 @@ This is a starter plan. Once you confirm your goal, I'll create a detailed plan 
       await this.executeWithRetry(async () => {
           return client.spreadsheets.values.update({
           spreadsheetId: this.options.spreadsheetId,
-          range: `${WorkspaceSheets.AGENT_BASE}!B1`,
+          range: `${WorkspaceSheets.AGENTSCAPE}!B1`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
             values: [['PLAN.md Contents']],
@@ -572,7 +572,7 @@ This is a starter plan. Once you confirm your goal, I'll create a detailed plan 
       await this.executeWithRetry(async () => {
           return client.spreadsheets.values.update({
           spreadsheetId: this.options.spreadsheetId,
-          range: `${WorkspaceSheets.AGENT_BASE}!B2`,
+          range: `${WorkspaceSheets.AGENTSCAPE}!B2`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
             values: [[starterPlan]],
