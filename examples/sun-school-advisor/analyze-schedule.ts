@@ -1,7 +1,7 @@
 /**
  * Script to analyze the Schedule sheet and extract teacher assignments
  */
-import { SheetAgent } from './src/agent';
+import { SheetAgent } from '../../src/agent';
 
 const SPREADSHEET_ID = '1EJh-PTWiBLgYHTbiSfwmJdeJ1W-iQ-H5WiHEN9WPpu8';
 

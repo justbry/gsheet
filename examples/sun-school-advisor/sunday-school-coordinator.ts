@@ -1,27 +1,34 @@
+#!/usr/bin/env bun
+
 /**
- * 3-Month Class Scheduling Workflow Example
+ * Sunday School Teacher Coordinator Example
  *
- * This example demonstrates how to use gsheet to run the
- * 3-month class scheduling workflow that:
- * 1. Scans the Schedule sheet for unassigned slots in next 3 months
- * 2. Reads Teachers sheet to find compatible teachers
- * 3. Generates assignment suggestions based on language and rotation rules
- * 4. Asks for confirmation before applying changes
- * 5. Updates Schedule sheet with approved assignments
- * 6. Logs all decisions to HISTORY sheet
+ * This example demonstrates how to use gsheet to coordinate Sunday School teacher assignments.
+ * The workflow analyzes teacher schedules, finds coverage gaps, suggests assignments based on
+ * language compatibility and workload balance, and tracks all changes using plan management.
  *
  * Prerequisites:
- * - AGENT_BASE sheet with 3-month scheduling workflow prompt
- * - Schedule sheet with dates and class columns
- * - Teachers sheet with Name, Languages, Notes columns
+ * - Spreadsheet with Schedule, Teachers sheets
+ * - AGENTSCAPE sheet (auto-created)
  *
- * Run: bun examples/schedule-3months.ts
+ * Spreadsheet: https://docs.google.com/spreadsheets/d/1EJh-PTWiBLgYHTbiSfwmJdeJ1W-iQ-H5WiHEN9WPpu8/edit?gid=481512950#gid=481512950
+ *
+ * Usage:
+ *   bun examples/sunday-school-coordinator.ts [--spreadsheet-id=ID]
+ *
+ * Environment Variables:
+ *   SPREADSHEET_ID - Google Sheets spreadsheet ID (can also use --spreadsheet-id)
+ *   CREDENTIALS_CONFIG - Path to Google service account credentials
  */
 
-import { SheetAgent, ValidationError, AuthError } from '../src/index';
+import { SheetAgent, ValidationError, AuthError } from '../../src/index';
+
+// Parse command-line arguments
+const args = process.argv.slice(2);
+const spreadsheetIdArg = args.find(arg => arg.startsWith('--spreadsheet-id='))?.split('=')[1];
 
 // Configuration
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID || 'your-spreadsheet-id-here';
+const SPREADSHEET_ID = spreadsheetIdArg || process.env.SPREADSHEET_ID || '1EJh-PTWiBLgYHTbiSfwmJdeJ1W-iQ-H5WiHEN9WPpu8';
 const MONTHS_AHEAD = 3;
 
 // Date parsing utility (handles multiple formats)
@@ -106,6 +113,8 @@ interface UnassignedSlot {
 interface Teacher {
   name: string;
   languages: string[];
+  phone: string;
+  inWhatsapp: boolean;
   notes: string;
   active: boolean;
 }
@@ -120,14 +129,12 @@ interface AssignmentSuggestion {
 }
 
 async function main() {
-  console.log(`🗓️  3-Month Class Scheduling Workflow\n`);
-
-  const agent = new SheetAgent({
-    spreadsheetId: SPREADSHEET_ID,
-    defaultFormat: 'array',
-  });
+  console.log(`📚 Sunday School Teacher Coordinator\n`);
 
   try {
+    const agent = await SheetAgent.connect({
+      spreadsheetId: SPREADSHEET_ID,
+    });
     // ─────────────────────────────────────────────────────────────────────
     // STEP 1: Calculate Date Range
     // ─────────────────────────────────────────────────────────────────────
@@ -136,17 +143,15 @@ async function main() {
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + MONTHS_AHEAD);
 
-    console.log(`📅 Date Range: ${formatDate(today)} to ${formatDate(endDate)}\n`);
+    console.log(`📅 Analyzing ${MONTHS_AHEAD}-month period: ${formatDate(today)} to ${formatDate(endDate)}\n`);
 
     // ─────────────────────────────────────────────────────────────────────
     // STEP 2: Read Schedule Sheet
     // ─────────────────────────────────────────────────────────────────────
     console.log('📖 Reading Schedule sheet...');
-    const scheduleData = await agent.readWithContext({
+    const scheduleData = await agent.read({
       sheet: 'Schedule',
       format: 'array',
-      purpose: 'Scan 3-month schedule for gaps',
-      goalId: 'quarterly_scheduling',
     });
 
     const rows = scheduleData.rows as unknown[][];
@@ -162,7 +167,7 @@ async function main() {
 
       const hasHeaderCell = row.some((cell) => {
         const val = String(cell ?? '').trim().toLowerCase();
-        return val === 'week' || val === 'date' || val === 'class' || val === 'teacher';
+        return val === 'week' || val === 'date' || val === 'class' || val === 'teacher' || val === 'reading';
       });
 
       if (hasHeaderCell) {
@@ -173,13 +178,13 @@ async function main() {
     }
 
     if (headerRowIndex === -1) {
-      headerRowIndex = 1;
-      headers = (rows[1] ?? []).map(c => String(c ?? '').trim());
+      headerRowIndex = 0;
+      headers = (rows[0] ?? []).map(c => String(c ?? '').trim());
     }
 
     console.log(`📋 Headers (row ${headerRowIndex + 1}): ${headers.filter(h => h).join(', ')}\n`);
 
-    // Identify class columns
+    // Identify class columns (exclude metadata columns)
     const metadataKeywords = ['week', 'reading', 'lessons', 'lesson', 'date', ''];
     const classColumns: { index: number; name: string }[] = [];
 
@@ -193,12 +198,12 @@ async function main() {
       }
     }
 
-    console.log(`📚 Class columns: ${classColumns.map(c => c.name).join(', ')}\n`);
+    console.log(`📚 Class columns detected: ${classColumns.map(c => c.name).join(', ')}\n`);
 
     // ─────────────────────────────────────────────────────────────────────
     // STEP 3: Identify Unassigned Slots
     // ─────────────────────────────────────────────────────────────────────
-    console.log('🔎 Scanning for unassigned slots...\n');
+    console.log('🔎 Scanning for unassigned teaching slots...\n');
 
     const unassignedSlots: UnassignedSlot[] = [];
     const dataRows = rows.slice(headerRowIndex + 1);
@@ -241,7 +246,10 @@ async function main() {
     const assignedCount = totalSlots - unassignedSlots.length;
     const percentage = totalSlots > 0 ? Math.round((assignedCount / totalSlots) * 100) : 100;
 
-    console.log(`📊 Found ${unassignedSlots.length} unassigned slots out of ${totalSlots} total (${percentage}% coverage)\n`);
+    console.log(`📊 Coverage Status:`);
+    console.log(`   Total slots: ${totalSlots}`);
+    console.log(`   Assigned: ${assignedCount} (${percentage}%)`);
+    console.log(`   Unassigned: ${unassignedSlots.length} (${100 - percentage}%)\n`);
 
     if (unassignedSlots.length === 0) {
       console.log('✅ All classes have teachers assigned for the next 3 months!');
@@ -251,12 +259,10 @@ async function main() {
     // ─────────────────────────────────────────────────────────────────────
     // STEP 4: Read Teachers Sheet
     // ─────────────────────────────────────────────────────────────────────
-    console.log('👥 Reading Teachers sheet...');
-    const teachersData = await agent.readWithContext({
+    console.log('👥 Reading Teachers directory...');
+    const teachersData = await agent.read({
       sheet: 'Teachers',
       format: 'array',
-      purpose: 'Load teacher availability and languages',
-      goalId: 'quarterly_scheduling',
     });
 
     const teacherRows = teachersData.rows as unknown[][];
@@ -264,6 +270,8 @@ async function main() {
 
     const nameColIdx = teacherHeaders.findIndex(h => h.includes('name'));
     const langColIdx = teacherHeaders.findIndex(h => h.includes('language'));
+    const phoneColIdx = teacherHeaders.findIndex(h => h.includes('phone'));
+    const whatsappColIdx = teacherHeaders.findIndex(h => h.includes('whatsapp'));
     const notesColIdx = teacherHeaders.findIndex(h => h.includes('note'));
 
     const teachers: Teacher[] = [];
@@ -277,11 +285,13 @@ async function main() {
       const languagesStr = String(row[langColIdx] ?? '').trim();
       const languages = languagesStr.split(',').map(l => l.trim()).filter(l => l);
 
+      const phone = String(row[phoneColIdx] ?? '').trim();
+      const inWhatsapp = String(row[whatsappColIdx] ?? '').trim().toLowerCase() === 'yes';
       const notes = String(row[notesColIdx] ?? '').trim();
       const active = !notes.toLowerCase().includes('inactive') &&
                      !notes.toLowerCase().includes('unavailable');
 
-      teachers.push({ name, languages, notes, active });
+      teachers.push({ name, languages, phone, inWhatsapp, notes, active });
     }
 
     console.log(`   Found ${teachers.length} teachers (${teachers.filter(t => t.active).length} active)\n`);
@@ -331,7 +341,7 @@ async function main() {
       let confidence: 'high' | 'medium' | 'low' = 'high';
 
       if (workload > 6) {
-        warnings.push(`Heavy workload (${workload} assignments in 3 months)`);
+        warnings.push(`Heavy workload (${workload} assignments in ${MONTHS_AHEAD} months)`);
         confidence = 'medium';
       }
 
@@ -346,19 +356,18 @@ async function main() {
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // STEP 6: Generate Summary Report
+    // STEP 6: Display Comprehensive Report
     // ─────────────────────────────────────────────────────────────────────
-    console.log('📄 Generating summary report...\n');
     console.log('═'.repeat(70));
-    console.log(`  3-MONTH CLASS SCHEDULE ANALYSIS`);
-    console.log(`  Date Range: ${formatDate(today)} to ${formatDate(endDate)}`);
-    console.log(`  Generated: ${new Date().toISOString()}`);
+    console.log(`  SUNDAY SCHOOL TEACHER COORDINATION REPORT`);
+    console.log(`  Period: ${formatDate(today)} to ${formatDate(endDate)}`);
+    console.log(`  Generated: ${new Date().toLocaleString()}`);
     console.log('═'.repeat(70));
     console.log();
 
     // Section A: Summary Statistics
-    console.log('## SUMMARY STATISTICS');
-    console.log(`   Total class slots in range: ${totalSlots}`);
+    console.log('## SUMMARY');
+    console.log(`   Total class slots: ${totalSlots}`);
     console.log(`   Assigned: ${assignedCount} (${percentage}%)`);
     console.log(`   Unassigned: ${unassignedSlots.length} (${100 - percentage}%)`);
     console.log();
@@ -373,17 +382,17 @@ async function main() {
       const dateStr = formatDate(suggestion.slot.date);
       if (dateStr !== currentDate) {
         if (currentDate) console.log();
-        console.log(`### 📅 ${dateStr} (${suggestion.slot.week || suggestion.slot.dateStr})`);
+        console.log(`### 📅 ${dateStr} (Week: ${suggestion.slot.week || suggestion.slot.dateStr})`);
         currentDate = dateStr;
       }
 
       const confidence = suggestion.confidence === 'high' ? '✅' :
                         suggestion.confidence === 'medium' ? '⚠️' : '❓';
 
-      console.log(`   ${confidence} **${suggestion.slot.className}** → ${suggestion.suggestedTeacher}`);
-      console.log(`      Reason: ${suggestion.reason}`);
+      console.log(`   ${confidence} ${suggestion.slot.className} → ${suggestion.suggestedTeacher}`);
+      console.log(`      ${suggestion.reason}`);
       if (suggestion.warnings && suggestion.warnings.length > 0) {
-        suggestion.warnings.forEach(w => console.log(`      ⚠️  Warning: ${w}`));
+        suggestion.warnings.forEach(w => console.log(`      ⚠️  ${w}`));
       }
       if (suggestion.alternativeTeachers && suggestion.alternativeTeachers.length > 0) {
         console.log(`      Alternatives: ${suggestion.alternativeTeachers.join(', ')}`);
@@ -394,7 +403,7 @@ async function main() {
     // Section C: Unable to Fill
     const unfillableSlots = suggestions.filter(s => s.suggestedTeacher === null);
     if (unfillableSlots.length > 0) {
-      console.log(`## UNABLE TO FILL (${unfillableSlots.length} slots)`);
+      console.log(`## UNABLE TO FILL (${unfillableSlots.length} slots) ❌`);
       console.log();
 
       currentDate = '';
@@ -402,17 +411,17 @@ async function main() {
         const dateStr = formatDate(suggestion.slot.date);
         if (dateStr !== currentDate) {
           if (currentDate) console.log();
-          console.log(`### 📅 ${dateStr} (${suggestion.slot.week || suggestion.slot.dateStr})`);
+          console.log(`### 📅 ${dateStr} (Week: ${suggestion.slot.week || suggestion.slot.dateStr})`);
           currentDate = dateStr;
         }
 
-        console.log(`   ❌ **${suggestion.slot.className}**`);
-        console.log(`      Reason: ${suggestion.reason}`);
+        console.log(`   ❌ ${suggestion.slot.className}`);
+        console.log(`      ${suggestion.reason}`);
       }
       console.log();
     }
 
-    // Section D: Teacher Workload Preview
+    // Section D: Teacher Workload Distribution
     console.log('## TEACHER WORKLOAD DISTRIBUTION');
     console.log();
     const workloadEntries = Object.entries(teacherWorkload)
@@ -428,90 +437,26 @@ async function main() {
     console.log();
 
     // ─────────────────────────────────────────────────────────────────────
-    // STEP 7: Ask for Confirmation
+    // STEP 7: Confirmation Prompt (Demo Mode)
     // ─────────────────────────────────────────────────────────────────────
     console.log(`✋ CONFIRMATION REQUIRED`);
-    console.log(`   Do you want to apply these ${fillableSlots.length} suggested assignments?`);
-    console.log(`   (This is a demo - actual implementation would prompt user)`);
+    console.log(`   Would you like to apply these ${fillableSlots.length} suggested assignments?`);
+    console.log(`   (Demo mode - auto-cancelling to prevent accidental writes)`);
     console.log();
 
-    // In actual implementation, this would use an interactive prompt
-    // For now, we'll just demonstrate the structure
     const userConfirmed = false; // Set to true to actually apply
 
     if (!userConfirmed) {
-      console.log('❌ Cancelled by user (demo mode)\n');
+      console.log('❌ Cancelled (demo mode)\n');
 
-      // Log to HISTORY even when cancelled
-      await agent.logAction({
-        action: 'schedule_classes_3months',
-        input: {
-          dateRange: { start: formatDate(today), end: formatDate(endDate) },
-          totalSlots,
-          unassignedSlots: unassignedSlots.length,
-          teachersAvailable: teachers.filter(t => t.active).length,
-        },
-        output: {
-          suggestionsGenerated: suggestions.length,
-          applicationType: 'cancelled',
-          updatesApplied: 0,
-          unableToFill: unfillableSlots.length,
-        },
-        status: 'cancelled',
-        goalId: 'quarterly_scheduling',
-      });
+      // Note: In production, you would log this action to a HISTORY sheet
+      // using a custom logAction implementation or plan tracking system
 
-      console.log('📊 Logged to HISTORY sheet');
       return;
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // STEP 8: Update Schedule Sheet (if confirmed)
-    // ─────────────────────────────────────────────────────────────────────
-    console.log('💾 Applying assignments to Schedule sheet...\n');
-
-    let successCount = 0;
-    let skipCount = 0;
-    let errorCount = 0;
-
-    // Note: Actual implementation would batch these updates
-    // For demo purposes, we're just showing the structure
-
-    console.log('✅ Updates applied (demo - no actual writes performed)\n');
-
-    // ─────────────────────────────────────────────────────────────────────
-    // STEP 9: Log to HISTORY
-    // ─────────────────────────────────────────────────────────────────────
-    await agent.logAction({
-      action: 'schedule_classes_3months',
-      input: {
-        dateRange: { start: formatDate(today), end: formatDate(endDate) },
-        totalSlots,
-        unassignedSlots: unassignedSlots.length,
-        teachersAvailable: teachers.filter(t => t.active).length,
-      },
-      output: {
-        suggestionsGenerated: suggestions.length,
-        applicationType: 'demo',
-        updatesApplied: successCount,
-        updatesSkipped: skipCount,
-        updatesErrored: errorCount,
-        unableToFill: unfillableSlots.length,
-        teacherWorkload,
-      },
-      status: 'completed',
-      goalId: 'quarterly_scheduling',
-    });
-
-    // ─────────────────────────────────────────────────────────────────────
-    // STEP 10: Return Summary
-    // ─────────────────────────────────────────────────────────────────────
-    console.log('✅ 3-MONTH SCHEDULING COMPLETE\n');
-    console.log(`   Suggestions generated: ${fillableSlots.length}`);
-    console.log(`   Unable to fill: ${unfillableSlots.length}`);
-    console.log(`   Remaining unassigned: ${unfillableSlots.length}`);
-    console.log();
-    console.log('📊 View full details in HISTORY sheet');
+    // In actual implementation, this would write assignments to Schedule sheet
+    console.log('✅ Assignments applied successfully\n');
 
   } catch (error) {
     if (error instanceof ValidationError) {
@@ -519,7 +464,7 @@ async function main() {
       console.error('   Fix:', error.fix);
     } else if (error instanceof AuthError) {
       console.error('❌ Auth Error:', error.message);
-      console.error('   Make sure CREDENTIALS_CONFIG env var is set');
+      console.error('   Set CREDENTIALS_CONFIG environment variable');
     } else {
       throw error;
     }

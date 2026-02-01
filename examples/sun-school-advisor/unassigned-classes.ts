@@ -13,7 +13,7 @@
  * Run: bun examples/unassigned-classes.ts
  */
 
-import { SheetAgent, ValidationError, AuthError } from '../src/index';
+import { SheetAgent, ValidationError, AuthError } from '../../src/index';
 
 // Configuration
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID || 'your-spreadsheet-id-here';
@@ -31,12 +31,10 @@ interface UnassignedClass {
 async function main() {
   console.log(`🔍 Finding Unassigned Classes for Next ${MONTHS_AHEAD} Months\n`);
 
-  const agent = new SheetAgent({
-    spreadsheetId: SPREADSHEET_ID,
-    defaultFormat: 'array',
-  });
-
   try {
+    const agent = await SheetAgent.connect({
+      spreadsheetId: SPREADSHEET_ID,
+    });
     // ─────────────────────────────────────────────────────────────────────
     // 1. READ THE SCHEDULE SHEET (as raw array to handle flexible structure)
     // ─────────────────────────────────────────────────────────────────────
