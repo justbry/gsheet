@@ -5,16 +5,63 @@ import type { SheetClient } from '../../src/core/sheet-client';
 import type { AgentFile } from '../../src/types';
 import { ValidationError } from '../../src/errors';
 
-// Create a mock SheetClient
+// Helper to build a full AgentFile with defaults
+function makeFile(overrides: Partial<AgentFile> & { file: string; content: string }): AgentFile {
+  return {
+    desc: '',
+    tags: '',
+    path: `/opt/agentscape/${overrides.file}`,
+    createdTs: '',
+    updatedTs: '',
+    status: 'active',
+    dependsOn: '',
+    contextLen: '',
+    maxCtxLen: '',
+    hash: '',
+    ...overrides,
+  };
+}
+
+// 12-row column-based header for column A
+const COLUMN_A_LABELS = [
+  'FILE', 'DESC', 'TAGS', 'Path', 'CreatedTS', 'UpdatedTS',
+  'Status', 'DependsOn', 'ContextLen', 'MaxCtxLen', 'Hash', 'MDContent',
+];
+
+// Build a column-based sheet with labels + files
+function buildColumnBasedSheet(files: Array<Record<string, string>>): unknown[][] {
+  const rows: unknown[][] = COLUMN_A_LABELS.map(label => [label]);
+  for (const file of files) {
+    rows[0].push(file.file || '');
+    rows[1].push(file.desc || '');
+    rows[2].push(file.tags || '');
+    rows[3].push(file.path || '');
+    rows[4].push(file.createdTs || '');
+    rows[5].push(file.updatedTs || '');
+    rows[6].push(file.status || '');
+    rows[7].push(file.dependsOn || '');
+    rows[8].push(file.contextLen || '');
+    rows[9].push(file.maxCtxLen || '');
+    rows[10].push(file.hash || '');
+    rows[11].push(file.content || '');
+  }
+  return rows;
+}
+
+// 12-column row-based header
+const ROW_BASED_HEADER = [
+  'FILE', 'DESC', 'TAGS', 'Path', 'CreatedTS', 'UpdatedTS',
+  'Status', 'DependsOn', 'ContextLen', 'MaxCtxLen', 'Hash', 'MDContent',
+];
+
 function createMockSheetClient(mockResponses: Record<string, unknown> = {}) {
-  const mockGet = vi.fn().mockImplementation((params: { spreadsheetId?: string; range?: string; ranges?: string[] }) => {
+  const mockGet = vi.fn().mockImplementation((params: { spreadsheetId?: string; range?: string }) => {
     if (params.range) {
       const range = params.range;
       if (mockResponses[range]) {
         return Promise.resolve(mockResponses[range]);
       }
     }
-    // Default empty response
     return Promise.resolve({ data: { values: [] } });
   });
 
@@ -50,7 +97,6 @@ function createMockSheetClient(mockResponses: Record<string, unknown> = {}) {
   return { sheetClient, mockGet, mockUpdate, mockAppend, mockBatchUpdate };
 }
 
-// Create a mock PlanManager
 function createMockPlanManager() {
   return {
     getPlan: vi.fn().mockResolvedValue({
@@ -67,13 +113,12 @@ describe('AgentScapeManager', () => {
   describe('listFiles()', () => {
     it('should return empty array when sheet is empty', async () => {
       const { sheetClient } = createMockSheetClient({
-        [AGENTSCAPE_SHEET]: { data: { values: [['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD']] } },
+        [AGENTSCAPE_SHEET]: { data: { values: [ROW_BASED_HEADER] } },
       });
       const planManager = createMockPlanManager();
       const manager = new AgentScapeManager(sheetClient, 'test-id', planManager);
 
       const files = await manager.listFiles();
-
       expect(files).toEqual([]);
     });
 
@@ -85,18 +130,17 @@ describe('AgentScapeManager', () => {
       const manager = new AgentScapeManager(sheetClient, 'test-id', planManager);
 
       const files = await manager.listFiles();
-
       expect(files).toEqual([]);
     });
 
-    it('should parse and return files', async () => {
+    it('should parse row-based files with 12 columns', async () => {
       const { sheetClient } = createMockSheetClient({
         [AGENTSCAPE_SHEET]: {
           data: {
             values: [
-              ['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD'],
-              ['NOTES.md', 'notes', 'tag1,tag2', '2025-01-15', '1K', '# Notes\n\nContent here'],
-              ['RESEARCH.md', 'research', 'research', '2025-01-16', '2K', '# Research\n\nMore content'],
+              ROW_BASED_HEADER,
+              ['NOTES.md', 'notes', 'tag1,tag2', '/opt/agentscape/NOTES.md', '2026-01-15T00:00:00Z', '2026-01-20T00:00:00Z', 'active', '', '250', '', 'abc123', '# Notes\n\nContent here'],
+              ['RESEARCH.md', 'research', 'research', '/opt/agentscape/RESEARCH.md', '2026-01-16T00:00:00Z', '2026-01-21T00:00:00Z', 'draft', 'NOTES.md', '500', '1000', 'def456', '# Research\n\nMore content'],
             ],
           },
         },
@@ -111,18 +155,39 @@ describe('AgentScapeManager', () => {
         file: 'NOTES.md',
         desc: 'notes',
         tags: 'tag1,tag2',
-        dates: '2025-01-15',
-        budget: '1K',
+        path: '/opt/agentscape/NOTES.md',
+        createdTs: '2026-01-15T00:00:00Z',
+        updatedTs: '2026-01-20T00:00:00Z',
+        status: 'active',
+        dependsOn: '',
+        contextLen: '250',
+        maxCtxLen: '',
+        hash: 'abc123',
         content: '# Notes\n\nContent here',
       });
-      expect(files[1]).toEqual({
-        file: 'RESEARCH.md',
-        desc: 'research',
-        tags: 'research',
-        dates: '2025-01-16',
-        budget: '2K',
-        content: '# Research\n\nMore content',
+      expect(files[1]?.status).toBe('draft');
+      expect(files[1]?.dependsOn).toBe('NOTES.md');
+    });
+
+    it('should parse column-based files with 12 rows', async () => {
+      const sheetData = buildColumnBasedSheet([
+        { file: 'AGENTS.md', desc: 'agent', tags: 'system', path: '/opt/agentscape/AGENTS.md', status: 'active', content: '# Agent' },
+        { file: 'PLAN.md', desc: 'plan', tags: 'plan', path: '/opt/agentscape/PLAN.md', status: 'active', dependsOn: 'AGENTS.md', content: '# Plan' },
+      ]);
+
+      const { sheetClient } = createMockSheetClient({
+        [AGENTSCAPE_SHEET]: { data: { values: sheetData } },
       });
+      const planManager = createMockPlanManager();
+      const manager = new AgentScapeManager(sheetClient, 'test-id', planManager);
+
+      const files = await manager.listFiles();
+
+      expect(files).toHaveLength(2);
+      expect(files[0]?.file).toBe('AGENTS.md');
+      expect(files[0]?.status).toBe('active');
+      expect(files[1]?.file).toBe('PLAN.md');
+      expect(files[1]?.dependsOn).toBe('AGENTS.md');
     });
   });
 
@@ -140,8 +205,8 @@ describe('AgentScapeManager', () => {
         [AGENTSCAPE_SHEET]: {
           data: {
             values: [
-              ['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD'],
-              ['NOTES.md', 'notes', '', '', '', '# Notes'],
+              ROW_BASED_HEADER,
+              ['NOTES.md', 'notes', '', '', '', '', 'active', '', '', '', '', '# Notes'],
             ],
           },
         },
@@ -150,17 +215,16 @@ describe('AgentScapeManager', () => {
       const manager = new AgentScapeManager(sheetClient, 'test-id', planManager);
 
       const file = await manager.readFile('NONEXISTENT.md');
-
       expect(file).toBeNull();
     });
 
-    it('should return file when it exists', async () => {
+    it('should return file when it exists with all 12 fields', async () => {
       const { sheetClient } = createMockSheetClient({
         [AGENTSCAPE_SHEET]: {
           data: {
             values: [
-              ['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD'],
-              ['NOTES.md', 'notes', 'tag1', '2025-01-15', '1K', '# Notes\n\nContent'],
+              ROW_BASED_HEADER,
+              ['NOTES.md', 'notes', 'tag1', '/opt/agentscape/NOTES.md', '2026-01-15T00:00:00Z', '2026-01-20T00:00:00Z', 'active', '', '250', '', 'abc123', '# Notes\n\nContent'],
             ],
           },
         },
@@ -174,8 +238,14 @@ describe('AgentScapeManager', () => {
         file: 'NOTES.md',
         desc: 'notes',
         tags: 'tag1',
-        dates: '2025-01-15',
-        budget: '1K',
+        path: '/opt/agentscape/NOTES.md',
+        createdTs: '2026-01-15T00:00:00Z',
+        updatedTs: '2026-01-20T00:00:00Z',
+        status: 'active',
+        dependsOn: '',
+        contextLen: '250',
+        maxCtxLen: '',
+        hash: 'abc123',
         content: '# Notes\n\nContent',
       });
     });
@@ -190,7 +260,9 @@ describe('AgentScapeManager', () => {
       expect(planManager.getPlan).toHaveBeenCalled();
       expect(file).toMatchObject({
         file: 'PLAN.md',
-        desc: 'plan',
+        desc: 'Active execution plan with phased tasks and progress tracking.',
+        status: 'active',
+        dependsOn: 'AGENTS.md',
         content: '# Plan: Test Plan\n\nGoal: Test Goal',
       });
     });
@@ -203,7 +275,6 @@ describe('AgentScapeManager', () => {
       const manager = new AgentScapeManager(sheetClient, 'test-id', planManager);
 
       const file = await manager.readFile('PLAN.md');
-
       expect(file).toBeNull();
     });
   });
@@ -214,46 +285,45 @@ describe('AgentScapeManager', () => {
       const planManager = createMockPlanManager();
       const manager = new AgentScapeManager(sheetClient, 'test-id', planManager);
 
-      const file: AgentFile = { file: '', desc: '', tags: '', dates: '', content: '' };
+      const file = makeFile({ file: '', content: '' });
 
       await expect(manager.writeFile(file)).rejects.toThrow(ValidationError);
     });
 
-    it('should append new file when it does not exist', async () => {
+    it('should append new file in row-based format', async () => {
       const { sheetClient, mockAppend } = createMockSheetClient({
         [AGENTSCAPE_SHEET]: {
           data: {
-            values: [['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD']],
+            values: [ROW_BASED_HEADER],
           },
         },
       });
       const planManager = createMockPlanManager();
       const manager = new AgentScapeManager(sheetClient, 'test-id', planManager);
 
-      const file: AgentFile = {
+      const file = makeFile({
         file: 'NEW.md',
         desc: 'new',
         tags: 'tag1',
-        dates: '2025-01-20',
         content: '# New File',
-      };
+      });
 
       await manager.writeFile(file);
 
       expect(mockAppend).toHaveBeenCalledWith(
         expect.objectContaining({
-          range: `${AGENTSCAPE_SHEET}!A:F`,
+          range: `${AGENTSCAPE_SHEET}!A:L`,
         })
       );
     });
 
-    it('should update existing file', async () => {
+    it('should update existing file in row-based format', async () => {
       const { sheetClient, mockUpdate } = createMockSheetClient({
         [AGENTSCAPE_SHEET]: {
           data: {
             values: [
-              ['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD'],
-              ['EXISTING.md', 'old', 'old-tag', '2025-01-15', '', '# Old Content'],
+              ROW_BASED_HEADER,
+              ['EXISTING.md', 'old', 'old-tag', '/opt/agentscape/EXISTING.md', '2026-01-15T00:00:00Z', '2026-01-15T00:00:00Z', 'active', '', '', '', '', '# Old Content'],
             ],
           },
         },
@@ -261,46 +331,74 @@ describe('AgentScapeManager', () => {
       const planManager = createMockPlanManager();
       const manager = new AgentScapeManager(sheetClient, 'test-id', planManager);
 
-      const file: AgentFile = {
+      const file = makeFile({
         file: 'EXISTING.md',
         desc: 'updated',
         tags: 'new-tag',
-        dates: '2025-01-20',
         content: '# Updated Content',
-      };
+      });
 
       await manager.writeFile(file);
 
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          range: `${AGENTSCAPE_SHEET}!A2:F2`,
+          range: `${AGENTSCAPE_SHEET}!A2:L2`,
         })
       );
     });
 
-    it('should delegate PLAN.md to PlanManager', async () => {
+    it('should delegate PLAN.md content write to row 12', async () => {
       const { sheetClient, mockUpdate } = createMockSheetClient({
         'AGENTSCAPE!A1:Z1': { data: { values: [['FILE', 'AGENTS.md', 'PLAN.md']] } },
       });
       const planManager = createMockPlanManager();
       const manager = new AgentScapeManager(sheetClient, 'test-id', planManager);
 
-      const file: AgentFile = {
+      const file = makeFile({
         file: 'PLAN.md',
         desc: 'plan',
-        tags: '',
-        dates: '',
         content: '# Plan: New Plan\n\nGoal: New Goal',
-      };
+      });
 
       await manager.writeFile(file);
 
-      // Should write to AGENTSCAPE!C6 (PLAN.md is in column C)
+      // Should write content to row 12 (PLAN.md is in column C)
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          range: 'AGENTSCAPE!C12',
+        })
+      );
+      // Should also update UpdatedTS at row 6
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           range: 'AGENTSCAPE!C6',
         })
       );
+    });
+
+    it('should auto-set path and status defaults', async () => {
+      const { sheetClient, mockAppend } = createMockSheetClient({
+        [AGENTSCAPE_SHEET]: {
+          data: {
+            values: [ROW_BASED_HEADER],
+          },
+        },
+      });
+      const planManager = createMockPlanManager();
+      const manager = new AgentScapeManager(sheetClient, 'test-id', planManager);
+
+      const file = makeFile({
+        file: 'TEST.md',
+        path: '',
+        status: '',
+        content: '# Test',
+      });
+
+      const result = await manager.writeFile(file);
+
+      expect(result.path).toBe('/opt/agentscape/TEST.md');
+      expect(result.status).toBe('active');
+      expect(result.updatedTs).toBeTruthy();
     });
   });
 
@@ -326,7 +424,7 @@ describe('AgentScapeManager', () => {
       const { sheetClient } = createMockSheetClient({
         [AGENTSCAPE_SHEET]: {
           data: {
-            values: [['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD']],
+            values: [ROW_BASED_HEADER],
           },
         },
       });
@@ -334,7 +432,6 @@ describe('AgentScapeManager', () => {
       const manager = new AgentScapeManager(sheetClient, 'test-id', planManager);
 
       const deleted = await manager.deleteFile('NONEXISTENT.md');
-
       expect(deleted).toBe(false);
     });
 
@@ -343,8 +440,8 @@ describe('AgentScapeManager', () => {
         [AGENTSCAPE_SHEET]: {
           data: {
             values: [
-              ['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD'],
-              ['DELETE_ME.md', 'delete', '', '', '', '# Delete'],
+              ROW_BASED_HEADER,
+              ['DELETE_ME.md', 'delete', '', '', '', '', 'active', '', '', '', '', '# Delete'],
             ],
           },
         },
@@ -378,7 +475,6 @@ describe('AgentScapeManager', () => {
     it('should create AGENTSCAPE sheet if it does not exist', async () => {
       const { sheetClient, mockBatchUpdate, mockUpdate } = createMockSheetClient();
 
-      // Mock that sheet doesn't exist
       const mockClientObj = await sheetClient.getClient();
       (mockClientObj.spreadsheets.get as any).mockResolvedValue({
         data: {
@@ -408,27 +504,27 @@ describe('AgentScapeManager', () => {
         })
       );
 
-      // Should write column labels (column-based format)
+      // Should write 12 column labels
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          range: `${AGENTSCAPE_SHEET}!A1:A6`,
+          range: `${AGENTSCAPE_SHEET}!A1:A12`,
           requestBody: expect.objectContaining({
-            values: [['FILE'], ['DESC'], ['TAGS'], ['DATES'], ['BUDGET'], ['Content/MD']],
+            values: COLUMN_A_LABELS.map(l => [l]),
           }),
         })
       );
 
-      // Should write AGENTS.md file
+      // Should write AGENTS.md file in column B
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          range: `${AGENTSCAPE_SHEET}!B1:B6`,
+          range: `${AGENTSCAPE_SHEET}!B1:B12`,
         })
       );
 
-      // Should write PLAN.md file
+      // Should write PLAN.md file in column C
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          range: `${AGENTSCAPE_SHEET}!C1:C6`,
+          range: `${AGENTSCAPE_SHEET}!C1:C12`,
         })
       );
     });

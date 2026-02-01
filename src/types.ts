@@ -95,6 +95,27 @@ export interface SearchMatch {
   value: string;
 }
 
+// Clear options and result
+export interface ClearOptions {
+  sheet: string | number;
+  range: string;
+}
+
+export interface ClearResult {
+  clearedRange: string;
+}
+
+// Delete rows options and result
+export interface DeleteRowsOptions {
+  sheet: string | number;
+  startRow: number;
+  endRow?: number;
+}
+
+export interface DeleteRowsResult {
+  deletedRows: number;
+}
+
 // Plan types (PDR-v4.5)
 export type TaskStatus = 'todo' | 'doing' | 'done' | 'blocked' | 'review';
 
@@ -149,10 +170,16 @@ export type TaskUpdate =
 
 // AgentScape file types (for CLI file system)
 export interface AgentFile {
-  file: string;           // Filename (e.g., "AGENT-PROFILE.md", "PLAN.md")
-  desc: string;           // Description/type (e.g., "md", "profile")
-  tags: string;           // Tags (comma-separated)
-  dates: string;          // Dates (e.g., created, modified)
-  budget?: string;        // Context budget (e.g., "2.5K", "dynamic", "0")
-  content: string;        // File content (markdown)
+  file: string;           // Row 1: Filename (e.g., "AGENTS.md", "PLAN.md")
+  desc: string;           // Row 2: Summary (max 50 words)
+  tags: string;           // Row 3: Comma-separated tags for filtering
+  path: string;           // Row 4: Virtual path (default /opt/agentscape/{file})
+  createdTs: string;      // Row 5: ISO 8601 creation timestamp (set once, immutable)
+  updatedTs: string;      // Row 6: ISO 8601 last modified timestamp
+  status: string;         // Row 7: Lifecycle state: active | draft | archived
+  dependsOn: string;      // Row 8: Comma-separated file dependencies
+  contextLen: string;     // Row 9: Formula result — estimated token count
+  maxCtxLen: string;      // Row 10: Token budget cap (empty = no limit)
+  hash: string;           // Row 11: Formula result — content fingerprint
+  content: string;        // Row 12+: MDContent (markdown)
 }

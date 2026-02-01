@@ -1,123 +1,182 @@
 # AGENTSCAPE Architecture
 
-AGENTSCAPE is the column-based file storage system that replaced the legacy AGENT_BASE sheet. It provides a file system metaphor over Google Sheets, enabling unlimited file storage with consistent metadata.
+AGENTSCAPE is a column-based file storage system built on Google Sheets. It provides a file system metaphor for storing agent configurations, plans, and arbitrary documents with consistent metadata.
 
-## Column-Based Format
+## Storage Format
 
-Each file is stored as a column, with 6 rows of metadata:
+Each file occupies one column. Rows 1-11 hold metadata; row 12+ holds content.
 
 ```
-     A          B            C              D              E              F
-1  FILE      AGENTS.md    PLAN.md        WORKFLOW.md    COORDINATOR.md HISTORY.md
-2  DESC      agent        plan           workflow       coordinator    history
-3  TAGS      system       agent,plan     tools          skills         log
-4  DATES     2026-01-21   2026-01-21     2026-01-21     2026-01-21     2026-01-21
-5  BUDGET    2.5K         dynamic        15K            1.6K           0
-6  Content   # Agent...   # Plan: ...    # Workflow...  # Coord...     # History...
+        A            B                              C                              D
+   +------------+---------------------------+-------------------------------+-------------------------------+
+ 1 | FILE       | AGENTS.md                 | WORKFLOW.md                   | HISTORY.md                    |
+   +------------+---------------------------+-------------------------------+-------------------------------+
+ 2 | DESC       | Core agent identity and   | Available tools and their     | Append-only audit log of      |
+   |            | capabilities.             | schemas.                      | agent actions.                |
+   +------------+---------------------------+-------------------------------+-------------------------------+
+ 3 | TAGS       | system                    | tools,workflow                | log,append                    |
+   +------------+---------------------------+-------------------------------+-------------------------------+
+ 4 | Path       | /opt/agentscape/AGENTS.md | /opt/agentscape/WORKFLOW.md   | /opt/agentscape/HISTORY.md    |
+   +------------+---------------------------+-------------------------------+-------------------------------+
+ 5 | CreatedTS  | 2026-01-15T08:00:00Z      | 2026-01-15T08:00:00Z          | 2026-01-15T08:00:00Z          |
+   +------------+---------------------------+-------------------------------+-------------------------------+
+ 6 | UpdatedTS  | 2026-01-21T09:15:00Z      | 2026-01-21T09:15:00Z          | 2026-01-21T14:32:00Z          |
+   +------------+---------------------------+-------------------------------+-------------------------------+
+ 7 | Status     | active                    | active                        | active                        |
+   +------------+---------------------------+-------------------------------+-------------------------------+
+ 8 | DependsOn  |                           | AGENTS.md                     |                               |
+   +------------+---------------------------+-------------------------------+-------------------------------+
+ 9 | ContextLen | =INT(LEN(B12)/4) -> 625   | =INT(LEN(C12)/4) -> 3750      | =INT(LEN(D12)/4) -> 1200      |
+   +------------+---------------------------+-------------------------------+-------------------------------+
+10 | MaxCtxLen  |                           | 5000                          | 500                           |
+   +------------+---------------------------+-------------------------------+-------------------------------+
+11 | Hash       | =SHA256(B12) -> a3f2...   | =SHA256(C12) -> 7b91...       | =SHA256(D12) -> e4c8...       |
+   +------------+---------------------------+-------------------------------+-------------------------------+
+12 | MDContent  | # Agent...                | # Workflow...                 | # History...                  |
+   |            | You are a sales analyst   | ## Tools                      | [2026-01-21] Agent init       |
+   |            | ## Capabilities           | - read_sheet                  | [2026-01-21] Plan loaded      |
+   +------------+---------------------------+-------------------------------+-------------------------------+
+      Labels        File 1                     File 2                         File 3
 ```
 
-### Key Points
-- **Column A** = Row labels (FILE, DESC, TAGS, DATES, BUDGET, Content/MD)
-- **Column B onwards** = Files (each column is one file)
-- **Row 1** = Filenames
-- **Row 5** = Context budget allocation
-- **Row 6** = File content
+### Column Layout
+
+| Column | Purpose |
+|--------|---------|
+| **A** | Row labels (FILE, DESC, TAGS, Path, CreatedTS, UpdatedTS, Status, DependsOn, ContextLen, MaxCtxLen, Hash, MDContent) |
+| **B onwards** | One file per column |
+
+### Row Definitions
+
+| Row | Field | Description |
+|-----|-------|-------------|
+| 1 | `FILE` | Filename with extension (e.g., `AGENTS.md`) |
+| 2 | `DESC` | Human-readable summary of file purpose (max 50 words) |
+| 3 | `TAGS` | Comma-separated tags for filtering/querying |
+| 4 | `Path` | Virtual filesystem path. Default: `/opt/agentscape/{filename}` |
+| 5 | `CreatedTS` | Creation timestamp (ISO 8601). Set once, never modified. |
+| 6 | `UpdatedTS` | Last modified timestamp (ISO 8601). Updated on every write. |
+| 7 | `Status` | Lifecycle state: `active`, `draft`, `archived`. Controls visibility in queries. |
+| 8 | `DependsOn` | Comma-separated filenames this file requires. Enables dependency-aware loading. |
+| 9 | `ContextLen` | **Formula**: `=INT(LEN({col}12)/4)` -- estimates actual token count. Auto-updates. |
+| 10 | `MaxCtxLen` | Maximum tokens to load from this file. Empty = no limit. |
+| 11 | `Hash` | **Formula**: `=SHA256({col}12)` -- content fingerprint for change detection and caching. |
+| 12+ | `MDContent` | File content (markdown supported, multi-line via cell wrap) |
 
 ### Cell References
-- B1:B6 = AGENTS.md (FILE, DESC, TAGS, DATES, BUDGET, Content)
-- C1:C6 = PLAN.md (FILE, DESC, TAGS, DATES, BUDGET, Content)
-- PlanManager reads from C1 (filename) and C6 (content)
+
+To read `WORKFLOW.md` directly via Sheets API:
+- Filename: `C1` -> `"WORKFLOW.md"`
+- Path: `C4` -> `"/opt/agentscape/WORKFLOW.md"`
+- Status: `C7` -> `"active"`
+- Dependencies: `C8` -> `"AGENTS.md"`
+- Token estimate: `C9` -> `=INT(LEN(C12)/4)` (formula, returns ~3750)
+- Max tokens: `C10` -> `5000` (budget cap)
+- Content hash: `C11` -> `=SHA256(C12)` (formula, returns fingerprint)
+- Content: `C12` -> `"# Workflow..."` (may span multiple rows visually but is one cell)
+
+---
+
+## Metadata Fields
+
+### Tags
+
+Tags enable filtering and categorization.
+
+**Reserved tags:**
+| Tag | Meaning |
+|-----|---------|
+| `system` | Core agent configuration, loaded on startup |
+| `append` | Append-only file (e.g., HISTORY.md) |
+| `readonly` | Cannot be modified via API |
+
+### Path
+
+Virtual filesystem paths enable CLI tooling and cross-references between files. Default: `/opt/agentscape/{filename}`.
+
+### ContextLen (Token Estimation)
+
+Row 9 contains a **formula** that estimates token count from MDContent:
+
+```
+=INT(LEN(B12)/4)
+```
+
+- `LEN(B12)` returns character count of MDContent cell
+- Dividing by 4 estimates tokens (~4 characters per token for English text)
+- `INT()` rounds down to whole number
+
+### MaxCtxLen (Context Budget Cap)
+
+Row 10 sets a **maximum token limit** for loading this file into context.
+
+| MaxCtxLen | Behavior |
+|-----------|----------|
+| Empty | Load full content (no cap) |
+| `500` | Truncate to ~500 tokens when loading |
+| `0` | Never auto-load (must query explicitly) |
+
+### CreatedTS & UpdatedTS
+
+| Field | Row | Set When | Modified |
+|-------|-----|----------|----------|
+| `CreatedTS` | 5 | File first written | Never |
+| `UpdatedTS` | 6 | File first written | Every write |
+
+### Status (Lifecycle State)
+
+| Status | Meaning | Auto-loaded? |
+|--------|---------|--------------|
+| `active` | In use, current | Yes |
+| `draft` | Work in progress | No |
+| `archived` | Retained but inactive | No |
+
+### DependsOn (File Dependencies)
+
+Row 8 declares which files must be loaded together. Comma-separated filenames.
+
+### Hash (Content Fingerprint)
+
+Row 11 contains a **formula** that computes a SHA256 hash of MDContent:
+
+```
+=SHA256(B12)
+```
+
+Use cases: cache invalidation, cross-environment sync, change detection.
+
+---
 
 ## Migration from AGENT_BASE
 
-### Before (AGENT_BASE sheet)
-```
-+-------------------+--------------------------+
-|        A          |            B             |
-+-------------------+--------------------------+
-| AGENT.md Content  |   PLAN.md Contents       | <- Row 1
-+-------------------+--------------------------+
-| # Sales Agent     | # Plan: Q4 Report        | <- Row 2
-|                   |                          |
-| You are a...      | Goal: Generate summary   |
-|                   |                          |
-| ## Capabilities   | ### Phase 1: Data        |
-| - Read sales      | - [x] 1.1 Read Orders    |
-| - Calculate...    | - [/] 1.2 Read Products  |
-+-------------------+--------------------------+
-```
-
-### After (AGENTSCAPE sheet)
-```
-+------+------+------+-------+---------+----------------------+
-| FILE | DESC | TAGS | DATES | Content |          F           |
-+------+------+------+-------+---------+----------------------+
-|AGENT |agent |system|2026-01|# Agent..|PLAN.md Contents      | <- Row 1
-+------+------+------+-------+---------+----------------------+
-|      |      |      |       |         |# Plan: Q4 Report     | <- Row 2
-|      |      |      |       |         |                      |
-|      |      |      |       |         |Goal: Generate...     |
-|      |      |      |       |         |                      |
-|      |      |      |       |         |### Phase 1: Data     |
-|      |      |      |       |         |- [x] 1.1 Read...     |
-|      |      |      |       |         |- [/] 1.2 Read...     |
-+------+------+------+-------+---------+----------------------+
-     Files stored row-by-row          Plan in dedicated column
-```
-
-## Key Differences
-
-| Aspect | AGENT_BASE | AGENTSCAPE |
-|--------|-----------|------------|
-| **AGENT.md** | Column A (A1:A2) | Regular file (row in A-E) |
-| **PLAN.md** | Column B (B1:B2) | Special column F (F1:F2) |
-| **Other Files** | Not supported | Columns A-E (row-based) |
-| **File System** | No | Yes (FILE/DESC/TAGS/DATES/Content) |
-| **CLI Support** | Limited | Full file management |
-
-## Benefits
-
-1. **Unified Storage** - AGENT.md is a regular file, can store unlimited files
-2. **File System Metaphor** - File-based API (readFile, writeFile, listFiles) instead of hard-coded cell references
-3. **Extensibility** - Adding new documents = just write a file
-4. **CLI Integration** - All files treated uniformly (ls, read, write, delete)
-5. **Backward Compatibility** - Automatic migration from AGENT_BASE to AGENTSCAPE
-
-## API Consistency
-
-```typescript
-// BEFORE: Inconsistent access
-agent.system                    // AGENT.md (special property)
-planManager.getPlan()           // PLAN.md (special handling)
-// No way to store other files
-
-// AFTER: Consistent file API
-agent.system                    // AGENT.md (loaded from file)
-planManager.getPlan()           // PLAN.md (still special, in column F)
-agentscape.readFile('AGENT.md') // Can access AGENT.md as file
-agentscape.readFile('RESEARCH.md') // Can store unlimited files
-agentscape.listFiles()          // List all files
-```
-
-## Automatic Migration
-
-When connecting to a spreadsheet with the old AGENT_BASE structure:
-
-```typescript
-const agent = await SheetAgent.connect({ spreadsheetId: 'abc123' });
-// Automatic migration happens here!
-```
+Legacy spreadsheets using the old `AGENT_BASE` sheet are automatically migrated when connecting via `SheetAgent.connect()`.
 
 **Steps:**
-1. Detects AGENT_BASE sheet exists
-2. Reads AGENT_BASE!A2 (agent context)
-3. Reads AGENT_BASE!B2 (plan content)
-4. Creates/initializes AGENTSCAPE sheet
-5. Writes AGENT.md as regular file (columns A-E)
-6. Writes plan to AGENTSCAPE!F1:F2
-7. Deletes old AGENT_BASE sheet
+1. Detect `AGENT_BASE` sheet exists
+2. Read `AGENT_BASE!A2` (agent content) and `AGENT_BASE!B2` (plan content)
+3. Create `AGENTSCAPE` sheet with 12-row column-based format
+4. Write `AGENTS.md` in column B, `PLAN.md` in column C
+5. Rename `AGENT_BASE` to `AGENT_BASE_BACKUP`
 
-## Code Impact
+## Comparison: AGENT_BASE vs AGENTSCAPE
 
-- Removed: `initAgentBase()` (~140 lines), hard-coded A1:A2/B1:B2 logic
-- Added: File system abstraction via AgentScapeManager, automatic migration logic
+| Aspect | AGENT_BASE | AGENTSCAPE |
+|--------|------------|------------|
+| File storage | 2 files only (A, B) | Unlimited files |
+| Metadata | None | 11 fields per file |
+| Token counting | Manual | Auto-calculated formula |
+| Token budgeting | None | MaxCtxLen caps per file |
+| Change detection | None | SHA256 hash |
+| Lifecycle | None | Status: active/draft/archived |
+| Dependencies | None | DependsOn + dependency loading |
+| Virtual paths | None | `/opt/agentscape/{file}` |
+| API | Hard-coded cells (`A2`, `B2`) | File system (`readFile`, `writeFile`) |
+
+## Changelog
+
+- **v2.0.0** -- 12-row metadata schema replaces 6-row schema
+  - Added: Path, CreatedTS, UpdatedTS, Status, DependsOn, ContextLen, MaxCtxLen, Hash
+  - Removed: DATES (split into CreatedTS + UpdatedTS), BUDGET (replaced by ContextLen + MaxCtxLen)
+  - Content moved from row 6 to row 12
+- **v1.0.0** -- AGENTSCAPE replaces AGENT_BASE
+  - Column-based file storage (6 rows: FILE, DESC, TAGS, DATES, BUDGET, Content/MD)

@@ -98,7 +98,7 @@ describe('PlanManager', () => {
     it('should parse plan when marker is correct', async () => {
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[samplePlanMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[samplePlanMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -113,7 +113,7 @@ describe('PlanManager', () => {
     it('should parse analysis section correctly', async () => {
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[samplePlanMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[samplePlanMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -129,7 +129,7 @@ describe('PlanManager', () => {
     it('should parse questions section correctly', async () => {
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[samplePlanMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[samplePlanMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -142,7 +142,7 @@ describe('PlanManager', () => {
     it('should parse task statuses correctly', async () => {
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[samplePlanMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[samplePlanMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -165,7 +165,7 @@ describe('PlanManager', () => {
     it('should parse notes section correctly', async () => {
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[samplePlanMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[samplePlanMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -177,7 +177,7 @@ describe('PlanManager', () => {
     it('should return null if plan content is empty', async () => {
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [['']] } },
+        'AGENTSCAPE!C12': { data: { values: [['']] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -191,7 +191,7 @@ describe('PlanManager', () => {
     it('should return first todo task', async () => {
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[samplePlanMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[samplePlanMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -229,7 +229,7 @@ Goal: Everything done
 
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[allDoneMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[allDoneMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -254,7 +254,7 @@ Goal: Test skipping
 
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[blockedFirstMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[blockedFirstMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -268,7 +268,7 @@ Goal: Test skipping
     it('should return tasks with review status', async () => {
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[samplePlanMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[samplePlanMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -305,7 +305,7 @@ Goal: Test no review
 
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[noReviewMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[noReviewMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -332,7 +332,7 @@ Goal: Test no review
 
       expect(mockUpdate).toHaveBeenCalled();
       const updateCall = mockUpdate.mock.calls[0]?.[0];
-      expect(updateCall?.range).toBe('AGENTSCAPE!C6');
+      expect(updateCall?.range).toBe('AGENTSCAPE!C12');
 
       const writtenContent = updateCall?.requestBody?.values?.[0]?.[0] as string;
       expect(writtenContent).toContain('# Plan: New Project');
@@ -364,7 +364,7 @@ Goal: Test no review
     it('should update task to doing status', async () => {
       const { sheetClient, mockUpdate } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[samplePlanMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[samplePlanMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -378,7 +378,7 @@ Goal: Test no review
     it('should update task to done status with completion date', async () => {
       const { sheetClient, mockUpdate } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[samplePlanMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[samplePlanMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -393,7 +393,7 @@ Goal: Test no review
     it('should update task to blocked status with reason', async () => {
       const { sheetClient, mockUpdate } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[samplePlanMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[samplePlanMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -407,7 +407,7 @@ Goal: Test no review
     it('should update task to review status with note', async () => {
       const { sheetClient, mockUpdate } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[samplePlanMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[samplePlanMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -432,7 +432,7 @@ Goal: Test no review
     it('should append line to existing notes section', async () => {
       const { sheetClient, mockUpdate } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[samplePlanMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[samplePlanMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -456,7 +456,7 @@ Goal: Test creating notes
 
       const { sheetClient, mockUpdate } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[noNotesMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[noNotesMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -493,7 +493,7 @@ Goal: Simple goal
 
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[noAnalysisMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[noAnalysisMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -517,7 +517,7 @@ Goal: Goal here
 
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[noQuestionsMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[noQuestionsMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -542,7 +542,7 @@ Goal: Test substeps
 
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[subStepMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[subStepMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');
@@ -555,7 +555,7 @@ Goal: Test substeps
     it('should preserve raw markdown', async () => {
       const { sheetClient } = createMockSheetClient({
         'AGENTSCAPE!C1': { data: { values: [['PLAN.md']] } },
-        'AGENTSCAPE!C6': { data: { values: [[samplePlanMarkdown]] } },
+        'AGENTSCAPE!C12': { data: { values: [[samplePlanMarkdown]] } },
       });
 
       const manager = new PlanManager(sheetClient, 'test-spreadsheet-id');

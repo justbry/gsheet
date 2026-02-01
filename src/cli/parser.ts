@@ -33,7 +33,10 @@ const VALID_FLAGS = [
   '--file',
   '--desc',
   '--tags',
-  '--dates',
+  '--path',
+  '--status',
+  '--depends-on',
+  '--max-ctx-len',
   '--spreadsheet-id',
   '--credentials',
   '--env',
@@ -223,9 +226,12 @@ OPTIONS:
 
   --content <text>          File content (for write command)
   --file <path>             Path to local file (for write command)
-  --desc <text>             File description
+  --desc <text>             File description (max 50 words)
   --tags <text>             Comma-separated tags
-  --dates <text>            Date information
+  --path <text>             Virtual path (default: /opt/agentscape/{file})
+  --status <text>           Lifecycle status: active, draft, archived
+  --depends-on <text>       Comma-separated file dependencies
+  --max-ctx-len <number>    Token budget cap for this file
 
   --json                    Output as JSON (for list command)
   --metadata                Show metadata (for read command)

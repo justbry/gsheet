@@ -64,7 +64,7 @@ async function main() {
           file: file.file,
           desc: file.desc,
           tags: file.tags,
-          dates: file.dates,
+          updatedTs: file.updatedTs,
         },
         null,
         2

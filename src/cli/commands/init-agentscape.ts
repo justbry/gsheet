@@ -2,8 +2,8 @@
  * Initialize/Fix AGENTSCAPE Structure
  *
  * This command ensures the AGENTSCAPE sheet has the correct structure:
- * - Column A (rows 1-6): Field labels (FILE, DESC, TAGS, DATES, BUDGET, Content/MD)
- * - Column B+: Files following the 6-row structure
+ * - Column A (rows 1-12): Field labels (FILE, DESC, TAGS, Path, CreatedTS, UpdatedTS, Status, DependsOn, ContextLen, MaxCtxLen, Hash, MDContent)
+ * - Column B+: Files following the 12-row structure
  *
  * If AGENTSCAPE exists but has an invalid structure, this command will:
  * 1. Read the existing data
@@ -23,7 +23,12 @@ interface InitResult {
   warnings: string[];
 }
 
-const EXPECTED_LABELS = ['FILE', 'DESC', 'TAGS', 'DATES', 'BUDGET', 'Content/MD'];
+const EXPECTED_LABELS = [
+  'FILE', 'DESC', 'TAGS', 'Path', 'CreatedTS', 'UpdatedTS',
+  'Status', 'DependsOn', 'ContextLen', 'MaxCtxLen', 'Hash', 'MDContent',
+];
+
+const METADATA_ROWS = 12;
 
 /**
  * Initialize or fix AGENTSCAPE structure
@@ -68,7 +73,7 @@ export async function initAgentscape(
       const response = await sheetClient.executeWithRetry(async () => {
         return client.spreadsheets.values.get({
           spreadsheetId,
-          range: 'AGENTSCAPE!A1:Z10',
+          range: `AGENTSCAPE!A1:Z${METADATA_ROWS}`,
         });
       });
       currentData = response.data.values || [];
@@ -83,7 +88,6 @@ export async function initAgentscape(
   if (isValid && !options.force) {
     result.success = true;
     result.action = 'already_valid';
-    // Count files in valid structure
     if (currentData.length > 0) {
       const firstRow = currentData[0] || [];
       for (let i = 1; i < firstRow.length; i++) {
@@ -103,23 +107,35 @@ export async function initAgentscape(
   result.fileNames = files.map((f) => f.name);
 
   if (files.length === 0) {
+    const now = new Date().toISOString();
     result.warnings.push('No existing files found. Creating default AGENTS.md and PLAN.md files.');
-    // Create default files
     files.push(
       {
         name: 'AGENTS.md',
-        desc: 'agent',
+        desc: 'Core agent identity and capabilities.',
         tags: 'system,context',
-        dates: new Date().toISOString().split('T')[0],
-        budget: '2.5K',
+        path: '/opt/agentscape/AGENTS.md',
+        createdTs: now,
+        updatedTs: now,
+        status: 'active',
+        dependsOn: '',
+        contextLen: '=INT(LEN(B12)/4)',
+        maxCtxLen: '',
+        hash: '=IF(B12="","",SHA256(B12))',
         content: '# Agent Context\n\nYou are an AI agent with access to a Google Sheets workspace.\n\n## Core Tools\n- read, write, append, search operations\n- Planning system (getPlan, createPlan, task management)\n- History logging\n\nSee documentation for full details.',
       },
       {
         name: 'PLAN.md',
-        desc: 'plan',
+        desc: 'Active execution plan with phased tasks.',
         tags: 'agent,plan',
-        dates: new Date().toISOString().split('T')[0],
-        budget: 'dynamic',
+        path: '/opt/agentscape/PLAN.md',
+        createdTs: now,
+        updatedTs: now,
+        status: 'active',
+        dependsOn: 'AGENTS.md',
+        contextLen: '=INT(LEN(C12)/4)',
+        maxCtxLen: '',
+        hash: '=IF(C12="","",SHA256(C12))',
         content: '# Plan: Getting Started\n\nGoal: Learn the sheet agent system and complete first task\n\n## Analysis\n\n- Spreadsheet: [Your spreadsheet]\n- Key sheets: [To be determined]\n\n### Phase 1: Orientation\n- [ ] 1.1 List all sheets in the spreadsheet\n- [ ] 1.2 Read headers from main sheet to understand structure\n- [ ] 1.3 Confirm user\'s goal and create detailed plan',
       }
     );
@@ -128,23 +144,22 @@ export async function initAgentscape(
   }
 
   // Step 5: Build correct structure
-  const fixedData: string[][] = [
-    ['FILE'],       // Row 1
-    ['DESC'],       // Row 2
-    ['TAGS'],       // Row 3
-    ['DATES'],      // Row 4
-    ['BUDGET'],     // Row 5
-    ['Content/MD'], // Row 6
-  ];
+  const fixedData: string[][] = EXPECTED_LABELS.map(label => [label]);
 
   // Add each file as a column
   files.forEach((file) => {
     fixedData[0].push(file.name);
     fixedData[1].push(file.desc);
     fixedData[2].push(file.tags);
-    fixedData[3].push(file.dates);
-    fixedData[4].push(file.budget);
-    fixedData[5].push(file.content);
+    fixedData[3].push(file.path);
+    fixedData[4].push(file.createdTs);
+    fixedData[5].push(file.updatedTs);
+    fixedData[6].push(file.status);
+    fixedData[7].push(file.dependsOn);
+    fixedData[8].push(file.contextLen);
+    fixedData[9].push(file.maxCtxLen);
+    fixedData[10].push(file.hash);
+    fixedData[11].push(file.content);
   });
 
   // Step 6: Write to sheet (or simulate if dry run)
@@ -156,7 +171,6 @@ export async function initAgentscape(
   }
 
   try {
-    // Create sheet if it doesn't exist
     if (!sheetExists) {
       await sheetClient.executeWithRetry(async () => {
         return client.spreadsheets.batchUpdate({
@@ -179,11 +193,10 @@ export async function initAgentscape(
       result.action = 'fixed';
     }
 
-    // Write the structure
     await sheetClient.executeWithRetry(async () => {
       return client.spreadsheets.values.update({
         spreadsheetId,
-        range: 'AGENTSCAPE!A1:Z6',
+        range: `AGENTSCAPE!A1:Z${METADATA_ROWS}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: fixedData,
@@ -204,10 +217,9 @@ export async function initAgentscape(
  * Validate if current data has correct structure
  */
 function validateStructure(data: unknown[][]): boolean {
-  if (data.length < 6) return false;
+  if (data.length < METADATA_ROWS) return false;
 
-  // Check column A labels
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < METADATA_ROWS; i++) {
     const value = String(data[i]?.[0] || '').trim();
     if (value !== EXPECTED_LABELS[i]) {
       return false;
@@ -217,19 +229,31 @@ function validateStructure(data: unknown[][]): boolean {
   return true;
 }
 
+interface ExtractedFile {
+  name: string;
+  desc: string;
+  tags: string;
+  path: string;
+  createdTs: string;
+  updatedTs: string;
+  status: string;
+  dependsOn: string;
+  contextLen: string;
+  maxCtxLen: string;
+  hash: string;
+  content: string;
+}
+
 /**
  * Extract files from existing data
  */
-function extractFilesFromData(
-  data: unknown[][]
-): Array<{ name: string; desc: string; tags: string; dates: string; budget: string; content: string }> {
-  const files: Array<{ name: string; desc: string; tags: string; dates: string; budget: string; content: string }> = [];
+function extractFilesFromData(data: unknown[][]): ExtractedFile[] {
+  const files: ExtractedFile[] = [];
 
   if (data.length === 0) return files;
 
   const row1 = data[0] || [];
 
-  // Look for files in columns B onwards
   for (let col = 1; col < row1.length; col++) {
     const cell = row1[col];
     if (!cell || typeof cell !== 'string') continue;
@@ -237,18 +261,26 @@ function extractFilesFromData(
     const cellStr = cell.trim();
     if (!cellStr) continue;
 
-    // Check if it looks like a filename or file identifier
     if (cellStr.endsWith('.md') || cellStr.includes('PLAN') || cellStr.includes('WORKFLOW') ||
         cellStr.includes('AGENTS') || cellStr.includes('HISTORY') || cellStr.includes('COORDINATOR')) {
 
       const name = cellStr.endsWith('.md') ? cellStr : `${cellStr}.md`;
-      const desc = String(data[1]?.[col] || '').trim();
-      const tags = String(data[2]?.[col] || '').trim();
-      const dates = String(data[3]?.[col] || new Date().toISOString().split('T')[0]).trim();
-      const budget = String(data[4]?.[col] || '0').trim();
-      const content = String(data[5]?.[col] || '').trim();
+      const now = new Date().toISOString();
 
-      files.push({ name, desc, tags, dates, budget, content });
+      files.push({
+        name,
+        desc: String(data[1]?.[col] || '').trim(),
+        tags: String(data[2]?.[col] || '').trim(),
+        path: String(data[3]?.[col] || `/opt/agentscape/${name}`).trim(),
+        createdTs: String(data[4]?.[col] || now).trim(),
+        updatedTs: String(data[5]?.[col] || now).trim(),
+        status: String(data[6]?.[col] || 'active').trim(),
+        dependsOn: String(data[7]?.[col] || '').trim(),
+        contextLen: String(data[8]?.[col] || '').trim(),
+        maxCtxLen: String(data[9]?.[col] || '').trim(),
+        hash: String(data[10]?.[col] || '').trim(),
+        content: String(data[11]?.[col] || '').trim(),
+      });
     }
   }
 
@@ -261,61 +293,57 @@ function extractFilesFromData(
 export function formatInitResult(result: InitResult): string {
   const lines: string[] = [];
 
-  lines.push('═'.repeat(60));
+  lines.push('='.repeat(60));
   lines.push('AGENTSCAPE Initialization');
-  lines.push('═'.repeat(60));
+  lines.push('='.repeat(60));
   lines.push('');
 
-  // Overall status
   if (result.success) {
     if (result.action === 'already_valid') {
-      lines.push('✅ Status: AGENTSCAPE already has valid structure');
+      lines.push('Status: AGENTSCAPE already has valid structure');
     } else if (result.action === 'created') {
-      lines.push('✅ Status: AGENTSCAPE sheet created successfully');
+      lines.push('Status: AGENTSCAPE sheet created successfully');
     } else {
-      lines.push('✅ Status: AGENTSCAPE structure fixed successfully');
+      lines.push('Status: AGENTSCAPE structure fixed successfully');
     }
   } else {
-    lines.push('❌ Status: Failed to initialize AGENTSCAPE');
+    lines.push('Status: Failed to initialize AGENTSCAPE');
   }
   lines.push('');
 
-  // Action taken
   lines.push(`Action: ${result.action}`);
   lines.push(`Files found/created: ${result.filesFound}`);
 
   if (result.fileNames.length > 0) {
     lines.push('');
     lines.push('Files:');
-    lines.push('─'.repeat(60));
+    lines.push('-'.repeat(60));
     result.fileNames.forEach((name) => {
-      lines.push(`  • ${name}`);
+      lines.push(`  ${name}`);
     });
   }
 
   lines.push('');
 
-  // Errors
   if (result.errors.length > 0) {
     lines.push('Errors:');
-    lines.push('─'.repeat(60));
+    lines.push('-'.repeat(60));
     result.errors.forEach((error) => {
-      lines.push(`  ❌ ${error}`);
+      lines.push(`  ${error}`);
     });
     lines.push('');
   }
 
-  // Warnings
   if (result.warnings.length > 0) {
     lines.push('Warnings:');
-    lines.push('─'.repeat(60));
+    lines.push('-'.repeat(60));
     result.warnings.forEach((warning) => {
-      lines.push(`  ⚠️  ${warning}`);
+      lines.push(`  ${warning}`);
     });
     lines.push('');
   }
 
-  lines.push('═'.repeat(60));
+  lines.push('='.repeat(60));
 
   return lines.join('\n');
 }

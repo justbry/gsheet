@@ -18,12 +18,10 @@ export async function cmdList(
   const files = await agentscape.listFiles();
 
   if (args.flags.json) {
-    // JSON output
     console.log(JSON.stringify(files, null, 2));
     return;
   }
 
-  // Table output
   if (files.length === 0) {
     console.log('No files found in AGENTSCAPE');
     return;
@@ -32,19 +30,20 @@ export async function cmdList(
   // Calculate column widths
   const fileWidth = Math.max(10, ...files.map((f) => f.file.length));
   const descWidth = Math.max(10, ...files.map((f) => f.desc.length));
-  const tagsWidth = Math.max(10, ...files.map((f) => f.tags.length));
-  const datesWidth = Math.max(10, ...files.map((f) => f.dates.length));
+  const statusWidth = Math.max(8, ...files.map((f) => f.status.length));
+  const tagsWidth = Math.max(8, ...files.map((f) => f.tags.length));
+  const ctxWidth = Math.max(6, ...files.map((f) => f.contextLen.length));
 
   // Print header
   console.log(
-    `${'FILE'.padEnd(fileWidth)} | ${'DESC'.padEnd(descWidth)} | ${'TAGS'.padEnd(tagsWidth)} | ${'DATES'.padEnd(datesWidth)}`
+    `${'FILE'.padEnd(fileWidth)} | ${'DESC'.padEnd(descWidth)} | ${'STATUS'.padEnd(statusWidth)} | ${'TAGS'.padEnd(tagsWidth)} | ${'CTX'.padEnd(ctxWidth)}`
   );
-  console.log('-'.repeat(fileWidth + descWidth + tagsWidth + datesWidth + 12));
+  console.log('-'.repeat(fileWidth + descWidth + statusWidth + tagsWidth + ctxWidth + 16));
 
   // Print rows
   for (const file of files) {
     console.log(
-      `${file.file.padEnd(fileWidth)} | ${file.desc.padEnd(descWidth)} | ${file.tags.padEnd(tagsWidth)} | ${file.dates.padEnd(datesWidth)}`
+      `${file.file.padEnd(fileWidth)} | ${file.desc.padEnd(descWidth)} | ${file.status.padEnd(statusWidth)} | ${file.tags.padEnd(tagsWidth)} | ${file.contextLen.padEnd(ctxWidth)}`
     );
   }
 
@@ -76,7 +75,14 @@ export async function cmdRead(
     console.log(`File: ${file.file}`);
     console.log(`Description: ${file.desc}`);
     console.log(`Tags: ${file.tags}`);
-    console.log(`Dates: ${file.dates}`);
+    console.log(`Path: ${file.path}`);
+    console.log(`Created: ${file.createdTs}`);
+    console.log(`Updated: ${file.updatedTs}`);
+    console.log(`Status: ${file.status}`);
+    console.log(`DependsOn: ${file.dependsOn || '(none)'}`);
+    console.log(`ContextLen: ${file.contextLen}`);
+    console.log(`MaxCtxLen: ${file.maxCtxLen || '(no limit)'}`);
+    console.log(`Hash: ${file.hash}`);
     console.log(`\n${'='.repeat(60)}\n`);
   }
 
@@ -87,7 +93,7 @@ export async function cmdRead(
 /**
  * Write a file to AGENTSCAPE
  * Requires --content or --file flag
- * Optional: --desc, --tags, --dates
+ * Optional: --desc, --tags, --status, --path, --depends-on
  */
 export async function cmdWrite(
   agentscape: AgentScapeManager,
@@ -103,26 +109,34 @@ export async function cmdWrite(
   if (typeof args.flags.content === 'string') {
     content = args.flags.content;
   } else if (typeof args.flags.file === 'string') {
-    // Read from local file
     const localFile = Bun.file(args.flags.file);
     content = await localFile.text();
   } else {
     throw new Error('Either --content or --file flag is required');
   }
 
+  const now = new Date().toISOString();
+
   // Build file object
   const file: AgentFile = {
     file: filename,
     desc: typeof args.flags.desc === 'string' ? args.flags.desc : 'md',
     tags: typeof args.flags.tags === 'string' ? args.flags.tags : '',
-    dates: typeof args.flags.dates === 'string' ? args.flags.dates : new Date().toISOString().split('T')[0] || '',
+    path: typeof args.flags.path === 'string' ? args.flags.path : `/opt/agentscape/${filename}`,
+    createdTs: '',  // Will be auto-set or preserved by manager
+    updatedTs: now,
+    status: typeof args.flags.status === 'string' ? args.flags.status : 'active',
+    dependsOn: typeof args.flags['depends-on'] === 'string' ? args.flags['depends-on'] : '',
+    contextLen: '',  // Computed by formula
+    maxCtxLen: typeof args.flags['max-ctx-len'] === 'string' ? args.flags['max-ctx-len'] : '',
+    hash: '',        // Computed by formula
     content,
   };
 
   // Write file
   await agentscape.writeFile(file);
 
-  console.log(`✓ Wrote ${filename} (${content.length} bytes)`);
+  console.log(`Wrote ${filename} (${content.length} bytes)`);
 }
 
 /**
@@ -140,7 +154,7 @@ export async function cmdDelete(
   const deleted = await agentscape.deleteFile(filename);
 
   if (deleted) {
-    console.log(`✓ Deleted ${filename}`);
+    console.log(`Deleted ${filename}`);
   } else {
     console.error(`File not found: ${filename}`);
     process.exit(1);

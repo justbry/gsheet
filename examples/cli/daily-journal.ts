@@ -64,7 +64,14 @@ async function main() {
     file: filename,
     desc: 'journal',
     tags: 'journal,daily',
-    dates: today,
+    path: '/opt/agentscape/' + filename,
+    createdTs: '',
+    updatedTs: new Date().toISOString(),
+    status: 'active',
+    dependsOn: '',
+    contextLen: '',
+    maxCtxLen: '',
+    hash: '',
     content,
   };
 

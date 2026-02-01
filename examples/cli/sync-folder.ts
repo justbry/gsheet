@@ -71,7 +71,7 @@ async function main() {
     let metadata = {
       desc: 'md',
       tags: '',
-      dates: new Date().toISOString().split('T')[0] || '',
+      updatedTs: new Date().toISOString(),
     };
 
     try {
@@ -80,7 +80,7 @@ async function main() {
       metadata = {
         desc: parsedMeta.desc || metadata.desc,
         tags: parsedMeta.tags || metadata.tags,
-        dates: parsedMeta.dates || metadata.dates,
+        updatedTs: parsedMeta.updatedTs || metadata.updatedTs,
       };
       console.log(`  ✓ Loaded metadata from ${filename}.meta.json`);
     } catch {
@@ -92,7 +92,14 @@ async function main() {
       file: filename,
       desc: metadata.desc,
       tags: metadata.tags,
-      dates: metadata.dates,
+      path: '/opt/agentscape/' + filename,
+      createdTs: '',
+      updatedTs: metadata.updatedTs,
+      status: 'active',
+      dependsOn: '',
+      contextLen: '',
+      maxCtxLen: '',
+      hash: '',
       content,
     };
 

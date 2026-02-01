@@ -11,7 +11,9 @@
       "Bash(find:*)",
       "Bash(bun test:*)",
       "Bash(obsidian-cli:*)",
-      "Bash(lsof:*)"
+      "Bash(lsof:*)",
+      "WebFetch(domain:github.com)",
+      "WebSearch"
     ]
   }
 }

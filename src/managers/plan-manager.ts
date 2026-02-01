@@ -34,7 +34,7 @@ export class PlanManager {
     private readonly sheetClient: SheetClient,
     private readonly spreadsheetId: string,
     private readonly planFileCell: string = 'AGENTSCAPE!C1',      // C1: filename "PLAN.md" (default, overridden by dynamic lookup)
-    private readonly planContentCell: string = 'AGENTSCAPE!C6'    // C6: content (row 6 = Content/MD) (default, overridden by dynamic lookup)
+    private readonly planContentCell: string = 'AGENTSCAPE!C12'   // C12: content (row 12 = MDContent) (default, overridden by dynamic lookup)
   ) {}
 
   /**
@@ -60,7 +60,7 @@ export class PlanManager {
         if (String(firstRow[col] || '').trim() === 'PLAN.md') {
           const letter = this.columnIndexToLetter(col);
           this.resolvedFileCell = `AGENTSCAPE!${letter}1`;
-          this.resolvedContentCell = `AGENTSCAPE!${letter}6`;
+          this.resolvedContentCell = `AGENTSCAPE!${letter}12`;
           return { fileCell: this.resolvedFileCell, contentCell: this.resolvedContentCell };
         }
       }
