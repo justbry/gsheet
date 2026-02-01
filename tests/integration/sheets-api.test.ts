@@ -25,8 +25,8 @@ describe.skipIf(!canRunIntegrationTests)('Integration: Google Sheets API', () =>
   let agent: SheetAgent;
   // Use an existing sheet from the test spreadsheet for read operations
   const existingSheetName = 'Schedule';
-  // Use AGENT_BASE for write tests (we know it exists)
-  const writeTestSheet = 'AGENT_BASE';
+  // Use AGENTSCAPE for write tests (we know it exists)
+  const writeTestSheet = 'AGENTSCAPE';
 
   beforeAll(async () => {
     if (!canRunIntegrationTests) return;
@@ -48,7 +48,7 @@ describe.skipIf(!canRunIntegrationTests)('Integration: Google Sheets API', () =>
     });
 
     it('should return system prompt after initialization', () => {
-      // After connect(), system should be loaded from AGENT_BASE!A2
+      // After connect(), system should be loaded from AGENTSCAPE!A2
       expect(typeof agent.system).toBe('string');
     });
   });
