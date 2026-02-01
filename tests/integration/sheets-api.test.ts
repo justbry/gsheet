@@ -265,8 +265,8 @@ describe.skipIf(!canRunIntegrationTests)('Integration: Google Sheets API', () =>
 
       expect(Array.isArray(sheets)).toBe(true);
       expect(sheets.length).toBeGreaterThan(0);
-      // AGENT_BASE should exist after connect() initializes it
-      expect(sheets).toContain('AGENT_BASE');
+      // AGENTSCAPE should exist after connect() initializes it
+      expect(sheets).toContain('AGENTSCAPE');
     });
   });
 
