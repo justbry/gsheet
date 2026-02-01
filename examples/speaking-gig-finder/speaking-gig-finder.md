@@ -47,7 +47,7 @@ This sheet is created by the script:
 
 ### 4. AGENTSCAPE (Auto-Created)
 
-Agent context and file storage.
+Agent context and file storage (12-row metadata schema: FILE, DESC, TAGS, Path, CreatedTS, UpdatedTS, Status, DependsOn, ContextLen, MaxCtxLen, Hash, MDContent).
 
 ## How It Works
 

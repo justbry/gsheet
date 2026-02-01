@@ -60,7 +60,10 @@ bun examples/cli/sync-folder.ts --spreadsheet-id=YOUR_ID --folder=./notes
 {
   "desc": "research",
   "tags": "important,draft",
-  "dates": "2026-01-20"
+  "status": "active",
+  "path": "/opt/agentscape/research.md",
+  "dependsOn": "",
+  "maxCtxLen": ""
 }
 ```
 
@@ -133,7 +136,7 @@ async function main() {
     file: 'NEW.md',
     desc: 'notes',
     tags: 'example',
-    dates: new Date().toISOString().split('T')[0],
+    status: 'active',
     content: '# New File\n\nContent here',
   });
 }

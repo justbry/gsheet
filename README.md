@@ -497,6 +497,52 @@ await agent.appendNotes('last_processed_id: abc-123');
 - **`blocked`** (`[>]`) - Blocked (requires reason)
 - **`review`** (`[!]`) - Needs review (requires note)
 
+## Examples
+
+The `examples/` directory contains production-ready examples demonstrating real-world use cases:
+
+### WhatsApp CLI (`examples/whatsapp-cli/`)
+
+Send and receive WhatsApp messages via Meta WhatsApp Cloud API.
+
+**Features**:
+- Send text messages and templates
+- Receive messages via webhook
+- Check account status and quality rating
+- Integration with sun-school-advisor for automated notifications
+
+**Quick Start**:
+```bash
+cd examples/whatsapp-cli
+cp .env.example .env
+# Fill in Meta WhatsApp credentials
+bun whatsapp-cli.ts send --to=+15551234567 --message="Hello!" --confirm
+```
+
+See [examples/whatsapp-cli/README.md](examples/whatsapp-cli/README.md) for full documentation.
+
+### Sunday School Coordinator (`examples/sun-school-advisor/`)
+
+Automated teacher assignment system with iMessage notifications.
+
+**Features**:
+- Analyze teacher schedules and find coverage gaps
+- Suggest assignments based on language compatibility and workload
+- Send iMessage notifications to assigned teachers
+- Teachers reply YES/NO to confirm assignments
+
+**Quick Start**:
+```bash
+bun examples/sun-school-advisor/sunday-school-coordinator.ts --confirm
+```
+
+### CLI Examples
+
+The `examples/cli/` directory demonstrates common CLI patterns:
+- `backup-all-files.ts` - Backup all files from AGENTSCAPE sheet
+- `daily-journal.ts` - Daily journaling workflow
+- `sync-folder.ts` - Sync local folder to AGENTSCAPE sheet
+
 ## Development
 
 ```bash
