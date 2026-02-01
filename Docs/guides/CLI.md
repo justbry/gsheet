@@ -4,17 +4,7 @@ These examples demonstrate how to use the `gsheet` CLI and AgentScapeManager pro
 
 ## Prerequisites
 
-1. **Set up credentials:**
-   ```bash
-   export CREDENTIALS_CONFIG=$(base64 -i service-account.json)
-   ```
-
-2. **Get your spreadsheet ID:**
-   - Open your Google Sheet
-   - Copy the ID from the URL: `https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit`
-
-3. **Share the spreadsheet:**
-   - Share with your service account email (Editor role)
+See [Configuration](../Configuration.md) for authentication setup and credentials.
 
 ## Examples
 
@@ -171,12 +161,7 @@ main();
 ## Troubleshooting
 
 ### Authentication errors
-- Verify `CREDENTIALS_CONFIG` is set correctly
-- Check that the spreadsheet is shared with your service account email
-
-### Permission errors
-- Ensure service account has Editor role on the spreadsheet
-- Verify the spreadsheet ID is correct
+- See [Configuration - Troubleshooting](../Configuration.md#troubleshooting)
 
 ### File not found errors
 - Run `gsheet ls --spreadsheet-id=YOUR_ID` to list all files

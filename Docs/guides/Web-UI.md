@@ -7,25 +7,13 @@ Interactive web UI demonstrating the gsheet library with real-time plan manageme
 - **Real-time Updates**: WebSocket connection for live synchronization across browser tabs
 - **Agent Context Management**: View and edit agent system prompts stored in AGENT_BASE!A2
 - **Plan Management**: Create plans with phases and steps
-- **Interactive Task List**: Update task statuses (todo → doing → done/blocked/review)
+- **Interactive Task List**: Update task statuses (todo -> doing -> done/blocked/review)
 - **Operation Log**: Track all operations with timestamps
 - **Status Monitoring**: Live connection status and spreadsheet info
 
 ## Prerequisites
 
-1. **Google Cloud Setup**:
-   - Create a Google Cloud project
-   - Enable Google Sheets API
-   - Create a service account
-   - Download credentials JSON
-
-2. **Spreadsheet Setup**:
-   - Create a Google Spreadsheet (or use existing)
-   - Share the spreadsheet with your service account email (found in credentials JSON)
-
-3. **Environment**:
-   - Bun runtime installed
-   - Node.js 18+ (for types)
+See [Configuration](../Configuration.md) for Google Cloud setup, service account creation, and credentials.
 
 ## Setup
 
@@ -45,17 +33,6 @@ GOOGLE_KEY_FILE=./path/to/service-account.json
 
 # Optional: Server port (default: 3000)
 PORT=3000
-```
-
-**To get SPREADSHEET_ID**: Open your Google Sheet, the ID is in the URL:
-```
-https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit
-```
-
-**To encode credentials** (Option 1):
-```bash
-base64 -i service-account.json | pbcopy  # macOS
-base64 -w 0 service-account.json         # Linux
 ```
 
 ### 2. Install Dependencies
@@ -98,11 +75,11 @@ The server will start at `http://localhost:3000`
   - Yellow = review
 
 **Updating Task Status**:
-1. Click "Start" on a todo task → changes to "doing"
-2. Click "Complete" on a doing task → changes to "done"
-3. Click "Block" → enter reason → task becomes blocked
-4. Click "Review" → enter note → task needs review
-5. Click "Resume" on blocked/review tasks → back to doing
+1. Click "Start" on a todo task -> changes to "doing"
+2. Click "Complete" on a doing task -> changes to "done"
+3. Click "Block" -> enter reason -> task becomes blocked
+4. Click "Review" -> enter note -> task needs review
+5. Click "Resume" on blocked/review tasks -> back to doing
 
 **Creating a New Plan**:
 1. Click "New Plan"
@@ -145,14 +122,14 @@ The right panel shows recent operations:
 ### Data Flow
 
 ```
-┌──────────┐     WebSocket      ┌──────────┐     SheetAgent     ┌──────────────┐
-│ Browser  │ ◄─────────────────► │  Server  │ ◄─────────────────► │ Google Sheets│
-└──────────┘     REST API        └──────────┘     API Calls      └──────────────┘
++-----------+     WebSocket      +-----------+     SheetAgent     +---------------+
+|  Browser  | <----------------> |  Server   | <----------------> | Google Sheets |
++-----------+     REST API       +-----------+     API Calls      +---------------+
 ```
 
-1. User action in browser → REST API call
-2. Server executes via SheetAgent → Updates Google Sheets
-3. Server broadcasts WebSocket event → All browsers update
+1. User action in browser -> REST API call
+2. Server executes via SheetAgent -> Updates Google Sheets
+3. Server broadcasts WebSocket event -> All browsers update
 
 ## API Endpoints
 
@@ -180,13 +157,13 @@ The right panel shows recent operations:
 
 ## WebSocket Events
 
-### Server → Client
+### Server -> Client
 - `connected` - Initial connection with spreadsheet ID
 - `plan_updated` - Plan was created or modified
 - `task_updated` - Task status changed
 - `context_updated` - Agent context saved
 
-### Client → Server
+### Client -> Server
 - `ping` - Keepalive (server responds with `pong`)
 
 ## Troubleshooting
@@ -254,14 +231,3 @@ case 'my_event':
 3. **Rate Limiting**: Consider adding rate limits for API endpoints
 4. **Error Logging**: Implement proper error logging/monitoring
 5. **Build**: No build step needed - Bun handles everything at runtime
-
-## License
-
-Same as gsheet (see parent README)
-
-## Support
-
-For issues or questions, please check:
-- [gsheet Documentation](../../README.md)
-- [Google Sheets API Docs](https://developers.google.com/sheets/api)
-- [Bun Documentation](https://bun.sh/docs)
