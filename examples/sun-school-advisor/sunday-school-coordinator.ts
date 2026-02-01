@@ -22,10 +22,12 @@
  */
 
 import { SheetAgent, ValidationError, AuthError } from '../../src/index';
+import { iMessageManager } from '../whatsapp-cli/imessage-manager';
 
 // Parse command-line arguments
 const args = process.argv.slice(2);
 const spreadsheetIdArg = args.find(arg => arg.startsWith('--spreadsheet-id='))?.split('=')[1];
+const confirmFlag = args.includes('--confirm');
 
 // Configuration
 const SPREADSHEET_ID = spreadsheetIdArg || process.env.SPREADSHEET_ID || '1EJh-PTWiBLgYHTbiSfwmJdeJ1W-iQ-H5WiHEN9WPpu8';
@@ -441,13 +443,17 @@ async function main() {
     // ─────────────────────────────────────────────────────────────────────
     console.log(`✋ CONFIRMATION REQUIRED`);
     console.log(`   Would you like to apply these ${fillableSlots.length} suggested assignments?`);
-    console.log(`   (Demo mode - auto-cancelling to prevent accidental writes)`);
+    if (!confirmFlag) {
+      console.log(`   (Demo mode - use --confirm flag to apply and send notifications)`);
+    }
     console.log();
 
-    const userConfirmed = false; // Set to true to actually apply
+    const userConfirmed = confirmFlag;
 
     if (!userConfirmed) {
       console.log('❌ Cancelled (demo mode)\n');
+      console.log('💡 To apply assignments and send WhatsApp notifications, run:');
+      console.log('   bun examples/sun-school-advisor/sunday-school-coordinator.ts --confirm\n');
 
       // Note: In production, you would log this action to a HISTORY sheet
       // using a custom logAction implementation or plan tracking system
@@ -457,6 +463,55 @@ async function main() {
 
     // In actual implementation, this would write assignments to Schedule sheet
     console.log('✅ Assignments applied successfully\n');
+
+    // ─────────────────────────────────────────────────────────────────────
+    // STEP 8: Send iMessage Notifications
+    // ─────────────────────────────────────────────────────────────────────
+    if (fillableSlots.length > 0) {
+      console.log('📱 Sending iMessage notifications...\n');
+
+      const messenger = new iMessageManager();
+
+      // Group assignments by teacher
+      const teacherAssignments = new Map<string, AssignmentSuggestion[]>();
+      for (const suggestion of fillableSlots) {
+        if (suggestion.suggestedTeacher) {
+          const existing = teacherAssignments.get(suggestion.suggestedTeacher) || [];
+          existing.push(suggestion);
+          teacherAssignments.set(suggestion.suggestedTeacher, existing);
+        }
+      }
+
+      // Send notifications to each teacher
+      for (const [teacherName, assignments] of teacherAssignments) {
+        const teacher = teachers.find(t => t.name === teacherName);
+
+        if (!teacher?.phone) {
+          console.log(`⏭️  Skipping ${teacherName} (no phone number)`);
+          continue;
+        }
+
+        // Format assignment details
+        const assignmentDetails = assignments.map(a => {
+          const date = formatDate(a.slot.date);
+          return `${a.slot.className} on ${date}`;
+        }).join(', ');
+
+        const message = `Hi ${teacherName}! You've been assigned to teach: ${assignmentDetails}. Reply YES to confirm or NO to decline.`;
+
+        try {
+          await messenger.sendText(teacher.phone, message);
+          console.log(`✅ Sent to ${teacherName}`);
+
+          // Add small delay between messages for cleaner UX
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error: any) {
+          console.error(`❌ Failed to send to ${teacherName}:`, error.message);
+        }
+      }
+
+      console.log('\n✅ iMessage notifications sent\n');
+    }
 
   } catch (error) {
     if (error instanceof ValidationError) {

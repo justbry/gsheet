@@ -33,7 +33,7 @@ Teacher directory with columns:
 - **Notes** - Availability notes (use "inactive" or "unavailable" to exclude)
 
 #### 3. AGENTSCAPE (Auto-created)
-Agent context, plan storage, and file system
+Agent context, plan storage, and file system (12-row metadata schema: FILE, DESC, TAGS, Path, CreatedTS, UpdatedTS, Status, DependsOn, ContextLen, MaxCtxLen, Hash, MDContent).
 
 ## How It Works
 
