@@ -37,6 +37,7 @@ export {
   ValidationError,
   PermissionError,
   NetworkError,
+  AgentPausedError,
   AuthError,
   PlanError,
 } from "./errors";
