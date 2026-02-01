@@ -58,6 +58,7 @@
     "zod": "^3.22.0"
   },
   "dependencies": {
+    "@great-detail/whatsapp": "^8.4.0",
     "googleapis": "^144.0.0"
   },
   "devDependencies": {
