@@ -35,6 +35,7 @@ const VALID_FLAGS = [
   '--recipient',
   '--message',
   '--confirm',
+  '--provider',
   '--content',
   '--file',
   '--desc',
@@ -164,14 +165,17 @@ export function validateCommand(parsed: ParsedArgs): void {
       if (!flags.confirm) {
         throw new Error('Command "send-message" requires --confirm flag for safety');
       }
+      // Validate provider if specified
+      if (flags.provider && typeof flags.provider === 'string') {
+        const validProviders = ['imessage', 'telnyx', 'auto'];
+        if (!validProviders.includes(flags.provider)) {
+          throw new Error(`Invalid --provider: ${flags.provider}. Valid options: ${validProviders.join(', ')}`);
+        }
+      }
       break;
   }
 
-  // Validate spreadsheet-id is provided (unless it's help/version/send-message)
-  const commandsWithoutSpreadsheetId = ['help', 'version', 'send-message'];
-  if (!flags['spreadsheet-id'] && !commandsWithoutSpreadsheetId.includes(command)) {
-    throw new Error('Missing required flag: --spreadsheet-id');
-  }
+  // spreadsheet-id validation is handled by resolveSpreadsheetId() with daily caching
 }
 
 /**
@@ -224,6 +228,43 @@ export function extractAuthOptions(flags: Record<string, string | boolean>): Aut
 }
 
 /**
+ * Resolve spreadsheet ID from flag or daily cache file.
+ * When provided, saves to .env.gsheet.YYYYMMDD and cleans up older cache files.
+ * When absent, reads from today's cache or throws requiring the flag.
+ */
+export async function resolveSpreadsheetId(flags: Record<string, string | boolean>): Promise<string> {
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const envFile = `.env.gsheet.${today}`;
+
+  const provided = typeof flags['spreadsheet-id'] === 'string' ? flags['spreadsheet-id'] : undefined;
+
+  if (provided) {
+    const id = extractSpreadsheetId(provided);
+    await Bun.write(envFile, id);
+    // Clean up old env files
+    const { unlinkSync } = await import('fs');
+    const glob = new Bun.Glob('.env.gsheet.*');
+    for await (const file of glob.scan('.')) {
+      if (file !== envFile) {
+        try { unlinkSync(file); } catch {}
+      }
+    }
+    return id;
+  }
+
+  // Try today's cache
+  const cached = Bun.file(envFile);
+  if (await cached.exists()) {
+    return (await cached.text()).trim();
+  }
+
+  throw new Error(
+    `Missing --spreadsheet-id. Required on first run each day.\n` +
+    `Usage: gsheet <command> --spreadsheet-id <id>`
+  );
+}
+
+/**
  * Get help text
  */
 export function getHelpText(): string {
@@ -256,6 +297,7 @@ OPTIONS:
   --recipient <phone>       Phone number or contact name (for send-message)
   --message <text>          Message text to send (for send-message)
   --confirm                 Confirm sending message (required for send-message)
+  --provider <type>         Messaging provider: imessage, telnyx, auto (default: auto)
   --content <text>          File content (for write command)
   --file <path>             Path to local file (for write command)
   --desc <text>             File description (max 50 words)
@@ -310,8 +352,12 @@ EXAMPLES:
   # Read sheet as JSON objects
   gsheet sheet-read --sheet Teachers --format objects --spreadsheet-id ABC123
 
-  # Send iMessage
+  # Send iMessage (auto-detect provider)
   gsheet send-message --recipient "+15551234567" --message "Hello!" --confirm
+
+  # Send via specific provider
+  gsheet send-message --recipient "+15551234567" --message "Hello!" --provider telnyx --confirm
+  gsheet send-message --recipient "+15551234567" --message "Hello!" --provider imessage --confirm
 
 AUTHENTICATION:
   By default, the CLI uses the CREDENTIALS_CONFIG environment variable (Base64-encoded

@@ -14,6 +14,7 @@ import {
   parseArgs,
   validateCommand,
   extractAuthOptions,
+  resolveSpreadsheetId,
   getHelpText,
   getVersionText,
 } from './parser';
@@ -51,12 +52,12 @@ async function main() {
       process.exit(0);
     }
 
+    // Resolve spreadsheet ID from flag or daily cache
+    const resolvedId = await resolveSpreadsheetId(parsed.flags);
+    parsed.flags['spreadsheet-id'] = resolvedId;
+
     // Extract auth options
     const authOptions = extractAuthOptions(parsed.flags);
-
-    if (!authOptions.spreadsheetId) {
-      throw new Error('Missing required flag: --spreadsheet-id');
-    }
 
     // Resolve credentials
     const credentials = await resolveCredentials(authOptions);

@@ -151,14 +151,14 @@ describe('Parser', () => {
       expect(() => validateCommand(parsed)).toThrow('Unknown command: invalid');
     });
 
-    it('should throw for missing spreadsheet-id', () => {
+    it('should not throw for missing spreadsheet-id (deferred to resolveSpreadsheetId)', () => {
       const parsed = {
         command: 'ls',
         args: [],
         flags: {},
       };
 
-      expect(() => validateCommand(parsed)).toThrow('Missing required flag: --spreadsheet-id');
+      expect(() => validateCommand(parsed)).not.toThrow();
     });
 
     it('should throw for read without filename', () => {
