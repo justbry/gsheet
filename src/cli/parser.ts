@@ -24,6 +24,7 @@ const VALID_COMMANDS = [
   'shell',
   'validate', 'check',
   'sheet-read',
+  'sheet-write',
   'send-message',
   'help',
   'version',
@@ -36,6 +37,8 @@ const VALID_FLAGS = [
   '--message',
   '--confirm',
   '--provider',
+  '--range',
+  '--data',
   '--content',
   '--file',
   '--desc',
@@ -152,6 +155,18 @@ export function validateCommand(parsed: ParsedArgs): void {
     case 'sheet-read':
       if (!flags.sheet) {
         throw new Error('Command "sheet-read" requires --sheet flag');
+      }
+      break;
+
+    case 'sheet-write':
+      if (!flags.sheet) {
+        throw new Error('Command "sheet-write" requires --sheet flag');
+      }
+      if (!flags.range) {
+        throw new Error('Command "sheet-write" requires --range flag (A1 notation, e.g. "F28" or "A1:D10")');
+      }
+      if (!flags.data) {
+        throw new Error('Command "sheet-write" requires --data flag (JSON string of 2D array)');
       }
       break;
 
@@ -283,6 +298,7 @@ COMMANDS:
   shell                 Start interactive REPL shell
   validate, check       Validate AGENTSCAPE structure and format
   sheet-read            Read any sheet (requires --sheet flag)
+  sheet-write           Write to any sheet (requires --sheet, --range, --data)
   send-message          Send iMessage (requires --recipient and --message)
   help                  Show this help message
   version               Show version information
@@ -292,7 +308,9 @@ OPTIONS:
   --credentials <path>      Path to service account credentials JSON
   --env                     Use CREDENTIALS_CONFIG environment variable (default)
 
-  --sheet <name>            Sheet name (for sheet-read command)
+  --sheet <name>            Sheet name (for sheet-read/sheet-write)
+  --range <A1>              Cell range in A1 notation (for sheet-write)
+  --data <json>             JSON 2D array of values (for sheet-write)
   --format <type>           Output format: array, objects (default: array)
   --recipient <phone>       Phone number or contact name (for send-message)
   --message <text>          Message text to send (for send-message)
@@ -352,6 +370,12 @@ EXAMPLES:
   # Read sheet as JSON objects
   gsheet sheet-read --sheet Teachers --format objects --spreadsheet-id ABC123
 
+  # Write to a sheet cell
+  gsheet sheet-write --sheet Schedule --range "F28" --data '[["Justin B"]]'
+
+  # Write multiple rows
+  gsheet sheet-write --sheet Schedule --range "F28:F31" --data '[["A"],["B"],["C"],["D"]]'
+
   # Send iMessage (auto-detect provider)
   gsheet send-message --recipient "+15551234567" --message "Hello!" --confirm
 
@@ -376,5 +400,5 @@ AUTHENTICATION:
  */
 export function getVersionText(): string {
   // Note: In production, this would read from package.json
-  return 'gsheet v1.0.0';
+  return 'gsheet v1.1.0';
 }

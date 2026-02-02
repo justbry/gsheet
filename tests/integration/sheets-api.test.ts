@@ -48,8 +48,13 @@ describe.skipIf(!canRunIntegrationTests)('Integration: Google Sheets API', () =>
     });
 
     it('should return system prompt after initialization', () => {
-      // After connect(), system should be loaded from AGENTSCAPE!A2
+      // After connect(), system should be loaded from AGENTS.md in AGENTSCAPE
       expect(typeof agent.system).toBe('string');
+    });
+
+    it('should return plan after initialization', () => {
+      // After connect(), plan should be loaded from PLAN.md in AGENTSCAPE
+      expect(typeof agent.plan).toBe('string');
     });
   });
 

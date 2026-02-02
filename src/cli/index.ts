@@ -18,7 +18,7 @@ import {
   getHelpText,
   getVersionText,
 } from './parser';
-import { cmdList, cmdRead, cmdWrite, cmdDelete, cmdShell, cmdSheetRead, cmdSendMessage } from './commands';
+import { cmdList, cmdRead, cmdWrite, cmdDelete, cmdShell, cmdSheetRead, cmdSheetWrite, cmdSendMessage } from './commands';
 import { validateAgentscape, formatValidationResult } from './commands/validate-agentscape';
 import { initAgentscape, formatInitResult } from './commands/init-agentscape';
 
@@ -62,29 +62,35 @@ async function main() {
     // Resolve credentials
     const credentials = await resolveCredentials(authOptions);
 
+    // Validate spreadsheet ID
+    const spreadsheetId = authOptions.spreadsheetId;
+    if (!spreadsheetId) {
+      throw new Error('Missing required flag: --spreadsheet-id');
+    }
+
     // Create SheetClient
     const sheetClient = new SheetClient({
-      spreadsheetId: authOptions.spreadsheetId,
+      spreadsheetId,
       credentials,
     });
 
     // Create PlanManager
-    const planManager = new PlanManager(sheetClient, authOptions.spreadsheetId);
+    const planManager = new PlanManager(sheetClient, spreadsheetId);
 
     // Create AgentScapeManager
-    const agentscape = new AgentScapeManager(sheetClient, authOptions.spreadsheetId, planManager);
+    const agentscape = new AgentScapeManager(sheetClient, spreadsheetId, planManager);
 
     // Special handling for commands that don't need AGENTSCAPE initialization
-    const skipInit = ['init', 'sheet-read'].includes(parsed.command);
+    const skipInit = ['init', 'sheet-read', 'sheet-write'].includes(parsed.command);
 
     if (skipInit) {
-      await routeCommand(parsed, agentscape, sheetClient, authOptions.spreadsheetId);
+      await routeCommand(parsed, agentscape, sheetClient, spreadsheetId);
     } else {
       // Initialize AGENTSCAPE sheet (idempotent) for other commands
       await agentscape.initAgentScape();
 
       // Route to command handler
-      await routeCommand(parsed, agentscape, sheetClient, authOptions.spreadsheetId);
+      await routeCommand(parsed, agentscape, sheetClient, spreadsheetId);
     }
 
     process.exit(0);
@@ -203,6 +209,10 @@ async function routeCommand(
 
     case 'sheet-read':
       await cmdSheetRead(spreadsheetId, parsed);
+      break;
+
+    case 'sheet-write':
+      await cmdSheetWrite(spreadsheetId, parsed);
       break;
 
     default:

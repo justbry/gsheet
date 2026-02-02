@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/**/*.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "env": {
+    "TELNYX_API_KEY": "@telnyx-api-key",
+    "TELNYX_PHONE_NUMBER": "@telnyx-phone-number"
+  }
+}

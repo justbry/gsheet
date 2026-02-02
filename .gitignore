@@ -23,6 +23,7 @@ prompts/archive/*
 .env.test.local
 .env.production.local
 .env.local
+.env.gsheet*
 
 # caches
 .eslintcache

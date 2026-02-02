@@ -1,7 +1,6 @@
 /**
  * SheetAgent - Main class for Google Sheets agent workspace
  */
-import { sheets_v4 } from 'googleapis';
 import type {
   SheetAgentOptions,
   ReadOptions,
@@ -20,18 +19,23 @@ import type {
   DeleteRowsOptions,
   DeleteRowsResult,
 } from './types';
-import { WorkspaceSheets } from './schemas';
+import type { sheets_v4 } from 'googleapis';
 import { ValidationError, PermissionError } from './errors';
 import { SheetClient } from './core/sheet-client';
 import { PlanManager } from './managers/plan-manager';
+import { AgentScapeManager } from './managers/agentscape-manager';
 
 export class SheetAgent {
   private readonly options: SheetAgentOptions;
   private readonly sheetClient: SheetClient;
   private readonly planManager: PlanManager;
+  private readonly agentscape: AgentScapeManager;
 
-  /** The AGENT.md content loaded at session start. Read-only. */
+  /** The AGENTS.md content loaded at session start from AGENTSCAPE. Read-only. */
   private _system: string = '';
+
+  /** The PLAN.md content loaded at session start from AGENTSCAPE. Read-only. */
+  private _plan: string = '';
 
   /**
    * Static factory method to create and initialize a SheetAgent.
@@ -49,11 +53,17 @@ export class SheetAgent {
   }
 
   /**
-   * The AGENT.md content, loaded at session start.
-   * Read-only. Edit AGENT_BASE!A2 directly to change.
+   * The AGENTS.md content, loaded at session start from AGENTSCAPE.
    */
   get system(): string {
     return this._system;
+  }
+
+  /**
+   * The PLAN.md content, loaded at session start from AGENTSCAPE.
+   */
+  get plan(): string {
+    return this._plan;
   }
 
   /**
@@ -82,6 +92,13 @@ export class SheetAgent {
     this.planManager = new PlanManager(
       this.sheetClient,
       options.spreadsheetId
+    );
+
+    // Initialize agentscape manager for reading workspace files
+    this.agentscape = new AgentScapeManager(
+      this.sheetClient,
+      options.spreadsheetId,
+      this.planManager
     );
   }
 
@@ -123,30 +140,30 @@ export class SheetAgent {
       throw error;
     }
 
-    // Step 2: Auto-initialize AGENT_BASE sheet (idempotent)
-    await this.initAgentBase();
+    // Step 2: Ensure AGENTSCAPE sheet exists (idempotent)
+    await this.agentscape.initAgentScape();
 
-    // Step 3: Load AGENT.md content into _system
+    // Step 3: Load AGENTS.md and PLAN.md from AGENTSCAPE
     await this.loadSystem();
   }
 
   /**
-   * Load AGENT.md content from AGENT_BASE!A2 into _system property
+   * Load AGENTS.md and PLAN.md from AGENTSCAPE into _system and _plan
    * @private
    */
   private async loadSystem(): Promise<void> {
-    const client = await this.getClient();
     try {
-      const response = await this.executeWithRetry(async () => {
-        return client.spreadsheets.values.get({
-          spreadsheetId: this.options.spreadsheetId,
-          range: `${WorkspaceSheets.AGENTSCAPE}!A2`,
-        });
-      });
-      this._system = (response.data.values?.[0]?.[0] as string) || '';
-    } catch (error) {
-      // If we can't read A2, leave _system empty
+      const agentsFile = await this.agentscape.readFile('AGENTS.md');
+      this._system = agentsFile?.content || '';
+    } catch {
       this._system = '';
+    }
+
+    try {
+      const planFile = await this.agentscape.readFile('PLAN.md');
+      this._plan = planFile?.content || '';
+    } catch {
+      this._plan = '';
     }
   }
 
@@ -183,7 +200,7 @@ export class SheetAgent {
     const sheetNameLower = sheetName.toLowerCase();
 
     const sheetData = response.data.sheets?.find(
-      (s) => s.properties?.title?.toLowerCase() === sheetNameLower
+      (s: any) => s.properties?.title?.toLowerCase() === sheetNameLower
     );
 
     return sheetData?.properties?.sheetId ?? null;
@@ -255,7 +272,7 @@ export class SheetAgent {
       dataRows = values;
     } else if (options.headers === false) {
       // Skip headers - use numeric indices
-      headers = values[0]?.map((_, i) => `col${i}`) ?? [];
+      headers = values[0]?.map((_: any, i: number) => `col${i}`) ?? [];
       dataRows = values;
     } else {
       // Auto-detect: first row is headers (default)
@@ -263,7 +280,7 @@ export class SheetAgent {
       if (!firstRow) {
         return { rows: [], headers: [], range: response.data.range ?? range };
       }
-      headers = firstRow.map((val, i) => String(val ?? `col${i}`));
+      headers = firstRow.map((val: any, i: number) => String(val ?? `col${i}`));
       dataRows = values.slice(1);
     }
 
@@ -356,234 +373,6 @@ export class SheetAgent {
   }
 
   // ===================
-  // Workspace operations
-  // ===================
-
-  /**
-   * Load the default agent base prompt from the prompts directory
-   * Falls back to minimal prompt if file not found
-   */
-  private async loadDefaultAgentBasePrompt(): Promise<string> {
-    try {
-      const fs = await import('node:fs/promises');
-      const path = await import('node:path');
-
-      // Try to load from prompts/DEFAULT_AGENT_BASE.md
-      const promptPath = path.join(__dirname, '../prompts/DEFAULT_AGENT_BASE.md');
-      const content = await fs.readFile(promptPath, 'utf-8');
-
-      if (content.trim()) {
-        return content;
-      }
-    } catch (error) {
-      // File not found or not readable, use fallback
-      console.warn('Could not load DEFAULT_AGENT_BASE.md, using fallback prompt');
-    }
-
-    // Fallback: minimal prompt if file doesn't exist
-    return `# Sheet Agent Context
-
-## Persona
-You are a spreadsheet automation agent.
-
-## Core Tools
-- read, write, append, search operations
-- Planning system (getPlan, createPlan, task management)
-- History logging
-
-See documentation for full details.`;
-  }
-
-  /**
-   * Generate the starter plan markdown for new workspaces
-   */
-  private generateStarterPlanMarkdown(): string {
-    return `# Plan: Getting Started
-
-Goal: Learn the sheet agent system and complete first task
-
-## Analysis
-
-- Spreadsheet: [Your spreadsheet]
-- Key sheets: [To be determined]
-- Target ranges:
-  - Read: [Ranges to be determined]
-  - Write: [Ranges to be determined]
-- Current state: Agent initialized, ready for first task
-
-## Questions for User
-
-- What spreadsheet task would you like to accomplish?
-- Which sheets contain the data you want to work with?
-
-### Phase 1: Orientation
-- [ ] 1.1 List all sheets in the spreadsheet
-- [ ] 1.2 Read headers from main sheet to understand structure
-- [ ] 1.3 Confirm user's goal and create detailed plan
-
-### Phase 2: Execution
-- [ ] 2.1 Execute the planned task
-- [ ] 2.2 Verify results with user
-- [ ] 2.3 Complete and log the work
-
-## Notes
-
-This is a starter plan. Once you confirm your goal, I'll create a detailed plan with specific steps, ranges, and success criteria.`;
-  }
-
-  /**
-   * Initialize the agent base by creating AGENT_BASE sheet with agent context and plan
-   * Creates: AGENT_BASE sheet with:
-   *   - A1: "AGENT.md Contents" marker, A2: agent context markdown
-   *   - B1: "PLAN.md Contents" marker, B2: plan markdown
-   * Preserves existing user sheets (non-destructive)
-   * Idempotent: safe to call multiple times without overwriting existing content
-   * @private
-   */
-  private async initAgentBase(): Promise<void> {
-    const client = await this.getClient();
-
-    // Get existing sheets
-    const existingSheets = await this.executeWithRetry(async () => {
-      return client.spreadsheets.get({
-        spreadsheetId: this.options.spreadsheetId,
-      });
-    });
-
-    const existingSheetNames = new Set(
-      (existingSheets.data.sheets ?? [])
-        .map(s => s.properties?.title)
-        .filter((title): title is string => title !== undefined)
-    );
-
-    // Determine which workspace sheets need to be created
-    const workspaceSheetNames = Object.values(WorkspaceSheets);
-    const sheetsToCreate = workspaceSheetNames.filter(
-      name => !existingSheetNames.has(name)
-    );
-
-    // Create missing workspace sheets
-    if (sheetsToCreate.length > 0) {
-      const addSheetRequests = sheetsToCreate.map(title => ({
-        addSheet: {
-          properties: {
-            title,
-          },
-        },
-      }));
-
-      await this.executeWithRetry(async () => {
-          return client.spreadsheets.batchUpdate({
-          spreadsheetId: this.options.spreadsheetId,
-          requestBody: {
-            requests: addSheetRequests,
-          },
-        });
-      });
-    }
-
-    // Initialize AGENT_BASE content
-    await this.initializeAgentBaseContent(client);
-  }
-
-  /**
-   * Initialize AGENT_BASE sheet content (agent context and plan)
-   * Idempotent: checks for markers and only initializes if missing
-   */
-  private async initializeAgentBaseContent(
-    client: sheets_v4.Sheets
-  ): Promise<void> {
-    // Check if agent context is already initialized (A1 contains marker)
-    let agentContextInitialized = false;
-    try {
-      const markerResponse = await this.executeWithRetry(async () => {
-          return client.spreadsheets.values.get({
-          spreadsheetId: this.options.spreadsheetId,
-          range: `${WorkspaceSheets.AGENTSCAPE}!A1`,
-        });
-      });
-      const markerValue = markerResponse.data.values?.[0]?.[0];
-      agentContextInitialized = markerValue === 'AGENT.md Contents';
-    } catch (error) {
-      // Marker cell doesn't exist yet
-      agentContextInitialized = false;
-    }
-
-    // Initialize agent context if not already present
-    if (!agentContextInitialized) {
-      // Write marker to A1
-      await this.executeWithRetry(async () => {
-          return client.spreadsheets.values.update({
-          spreadsheetId: this.options.spreadsheetId,
-          range: `${WorkspaceSheets.AGENTSCAPE}!A1`,
-          valueInputOption: 'USER_ENTERED',
-          requestBody: {
-            values: [['AGENT.md Contents']],
-          },
-        });
-      });
-
-      // Load and write comprehensive agent context to A2
-      const agentContext = await this.loadDefaultAgentBasePrompt();
-      await this.executeWithRetry(async () => {
-          return client.spreadsheets.values.update({
-          spreadsheetId: this.options.spreadsheetId,
-          range: `${WorkspaceSheets.AGENTSCAPE}!A2`,
-          valueInputOption: 'USER_ENTERED',
-          requestBody: {
-            values: [[agentContext]],
-          },
-        });
-      });
-    }
-
-    // Check if plan is already initialized (B1 contains marker)
-    let planInitialized = false;
-    try {
-      const planMarkerResponse = await this.executeWithRetry(async () => {
-          return client.spreadsheets.values.get({
-          spreadsheetId: this.options.spreadsheetId,
-          range: `${WorkspaceSheets.AGENTSCAPE}!B1`,
-        });
-      });
-      const planMarkerValue = planMarkerResponse.data.values?.[0]?.[0];
-      planInitialized = planMarkerValue === 'PLAN.md Contents';
-    } catch (error) {
-      // Plan marker cell doesn't exist yet
-      planInitialized = false;
-    }
-
-    // Initialize plan if not already present
-    if (!planInitialized) {
-      // Write plan marker to B1
-      await this.executeWithRetry(async () => {
-          return client.spreadsheets.values.update({
-          spreadsheetId: this.options.spreadsheetId,
-          range: `${WorkspaceSheets.AGENTSCAPE}!B1`,
-          valueInputOption: 'USER_ENTERED',
-          requestBody: {
-            values: [['PLAN.md Contents']],
-          },
-        });
-      });
-
-      // Write starter plan to B2
-      const starterPlan = this.generateStarterPlanMarkdown();
-      await this.executeWithRetry(async () => {
-          return client.spreadsheets.values.update({
-          spreadsheetId: this.options.spreadsheetId,
-          range: `${WorkspaceSheets.AGENTSCAPE}!B2`,
-          valueInputOption: 'USER_ENTERED',
-          requestBody: {
-            values: [[starterPlan]],
-          },
-        });
-      });
-    }
-  }
-
-
-  // ===================
   // Plan operations (replaces Task operations)
   // ===================
 
@@ -655,7 +444,7 @@ This is a starter plan. Once you confirm your goal, I'll create a detailed plan 
       });
     });
 
-    return response.data.sheets?.map((sheet) => sheet.properties?.title || '') || [];
+    return response.data.sheets?.map((sheet: any) => sheet.properties?.title || '') || [];
   }
 
   /**
@@ -953,7 +742,7 @@ This is a starter plan. Once you confirm your goal, I'll create a detailed plan 
       return { rows: [], matchedCount: 0, searchedCount: 0 };
     }
 
-    const headers = headerRow.map((val, i) => String(val ?? `col${i}`));
+    const headers = headerRow.map((val: any, i: number) => String(val ?? `col${i}`));
     const dataRows = values.slice(1);
 
     if (dataRows.length === 0) {
@@ -964,7 +753,7 @@ This is a starter plan. Once you confirm your goal, I'll create a detailed plan 
     const queryEntries = Object.entries(options.query);
 
     // Filter rows based on query
-    const matchedRows = dataRows.filter(row => {
+    const matchedRows = dataRows.filter((row: any[]) => {
       const rowObj = this.rowToObject(row, headers);
 
       if (operator === 'and') {
@@ -981,7 +770,7 @@ This is a starter plan. Once you confirm your goal, I'll create a detailed plan 
     });
 
     // Convert matched rows to objects
-    const rows = matchedRows.map(row => this.rowToObject(row, headers)) as T[];
+    const rows = matchedRows.map((row: any[]) => this.rowToObject(row, headers)) as T[];
 
     return {
       rows,

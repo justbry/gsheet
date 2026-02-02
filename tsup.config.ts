@@ -9,5 +9,5 @@ export default defineConfig({
   treeshake: true,
   minify: true,
   splitting: false,
-  external: ['zod'],
+  external: ['zod', 'bun'],
 });

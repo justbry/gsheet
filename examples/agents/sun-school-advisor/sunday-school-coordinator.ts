@@ -22,7 +22,8 @@
  */
 
 import { SheetAgent, ValidationError, AuthError } from '../../src/index';
-import { iMessageManager } from '../whatsapp-cli/imessage-manager';
+import { getMessagingProvider } from '../../src/messaging/factory';
+import type { MessagingProvider } from '../../src/messaging/types';
 
 // Parse command-line arguments
 const args = process.argv.slice(2);
@@ -465,12 +466,13 @@ async function main() {
     console.log('✅ Assignments applied successfully\n');
 
     // ─────────────────────────────────────────────────────────────────────
-    // STEP 8: Send iMessage Notifications
+    // STEP 8: Send Notifications (iMessage or Telnyx)
     // ─────────────────────────────────────────────────────────────────────
     if (fillableSlots.length > 0) {
-      console.log('📱 Sending iMessage notifications...\n');
+      const providerType = (process.env.MESSAGING_PROVIDER as any) || 'auto';
+      console.log(`📱 Sending notifications via ${providerType}...\n`);
 
-      const messenger = new iMessageManager();
+      const messenger = await getMessagingProvider(providerType);
 
       // Group assignments by teacher
       const teacherAssignments = new Map<string, AssignmentSuggestion[]>();
@@ -510,7 +512,7 @@ async function main() {
         }
       }
 
-      console.log('\n✅ iMessage notifications sent\n');
+      console.log('\n✅ Notifications sent\n');
     }
 
   } catch (error) {

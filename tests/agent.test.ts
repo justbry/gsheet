@@ -67,8 +67,19 @@ describe('SheetAgent', () => {
         spreadsheetId: 'test-spreadsheet-id',
         credentials: mockCredentials,
       });
-      // Before connect() is called, system is empty
+      // Before connect() is called, system (AGENTS.md) is empty
       expect(agent.system).toBe('');
+    });
+  });
+
+  describe('plan property', () => {
+    it('should return empty string before initialization', () => {
+      const agent = new SheetAgent({
+        spreadsheetId: 'test-spreadsheet-id',
+        credentials: mockCredentials,
+      });
+      // Before connect() is called, plan (PLAN.md) is empty
+      expect(agent.plan).toBe('');
     });
   });
 
@@ -627,7 +638,7 @@ describe('SheetAgent', () => {
           sheets: [
             { properties: { title: 'Sheet1' } },
             { properties: { title: 'Data' } },
-            { properties: { title: 'AGENT_BASE' } },
+            { properties: { title: 'AGENTSCAPE' } },
           ],
         },
       });
@@ -651,7 +662,7 @@ describe('SheetAgent', () => {
       expect(sheets).toHaveLength(3);
       expect(sheets).toContain('Sheet1');
       expect(sheets).toContain('Data');
-      expect(sheets).toContain('AGENT_BASE');
+      expect(sheets).toContain('AGENTSCAPE');
     });
   });
 

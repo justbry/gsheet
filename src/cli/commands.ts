@@ -237,6 +237,51 @@ export async function cmdSheetRead(
 }
 
 /**
+ * Write data to any sheet in the spreadsheet
+ * Requires --sheet, --range, and --data flags
+ * Optional --headers flag
+ */
+export async function cmdSheetWrite(
+  spreadsheetId: string,
+  args: ParsedArgs
+): Promise<void> {
+  const sheetName = args.flags.sheet;
+  if (typeof sheetName !== 'string') {
+    throw new Error('--sheet flag is required for sheet-write command');
+  }
+
+  const range = args.flags.range;
+  if (typeof range !== 'string') {
+    throw new Error('--range flag is required for sheet-write command');
+  }
+
+  const dataStr = args.flags.data;
+  if (typeof dataStr !== 'string') {
+    throw new Error('--data flag is required for sheet-write command');
+  }
+
+  let data: unknown[][];
+  try {
+    data = JSON.parse(dataStr);
+  } catch {
+    throw new Error('--data must be a valid JSON array (e.g. \'[["value1"],["value2"]]\')');
+  }
+
+  if (!Array.isArray(data)) {
+    throw new Error('--data must be a JSON array of arrays');
+  }
+
+  const headers = args.flags.headers === true ? true :
+    typeof args.flags.headers === 'string' ? args.flags.headers.split(',') : undefined;
+
+  const agent = await SheetAgent.connect({ spreadsheetId });
+  const result = await agent.write({ sheet: sheetName, range, data, headers });
+
+  console.log(`Updated ${result.updatedCells} cell(s) in ${result.updatedRange}`);
+  console.log(`Rows: ${result.updatedRows}, Columns: ${result.updatedColumns}`);
+}
+
+/**
  * Send iMessage using macOS Messages.app
  * Requires --recipient and --message flags
  * Requires --confirm flag for safety
@@ -246,6 +291,7 @@ export async function cmdSendMessage(
 ): Promise<void> {
   const recipient = args.flags.recipient;
   const message = args.flags.message;
+  const providerType = (args.flags.provider as string) || 'auto';
 
   if (typeof recipient !== 'string') {
     throw new Error('--recipient flag is required');
@@ -259,29 +305,22 @@ export async function cmdSendMessage(
     console.log('⚠️  Preview mode (use --confirm to send):\n');
     console.log(`To: ${recipient}`);
     console.log(`Message:\n${message}`);
+    console.log(`Provider: ${providerType}`);
     return;
   }
 
-  // Path to local send-message.ts tool (relative to project root)
-  const sendMessagePath = join(
-    process.cwd(),
-    'examples/imessage-cli/send-message.ts'
-  );
+  try {
+    // Use messaging factory to get appropriate provider
+    const { getMessagingProvider } = await import('../messaging/factory');
+    const provider = await getMessagingProvider(providerType as any);
 
-  console.log(`📱 Sending to ${recipient}...`);
+    console.log(`📱 Sending via ${providerType} to ${recipient}...`);
 
-  // Call SendMessage.ts with proper argument escaping
-  const proc = Bun.spawn(['bun', sendMessagePath, '--recipient', recipient, '--message', message], {
-    stdout: 'pipe',
-    stderr: 'pipe',
-  });
+    await provider.sendText(recipient, message);
 
-  const exitCode = await proc.exited;
-
-  if (exitCode !== 0) {
-    const stderr = await new Response(proc.stderr).text();
-    throw new Error(`Failed to send message: ${stderr}`);
+    console.log('✅ Message sent successfully!');
+  } catch (error: any) {
+    console.error('❌ Failed to send message:', error.message);
+    throw error;
   }
-
-  console.log('✅ Message sent successfully!');
 }
