@@ -39,6 +39,7 @@ export interface SheetAgentOptions {
 }
 
 // Read options
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface ReadOptions<T = Record<string, unknown>> {
   sheet: string | number;       // Sheet name or index
   range?: string;               // A1 notation (optional)
@@ -55,6 +56,7 @@ export interface WriteOptions {
 }
 
 // Search options
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface SearchOptions<T = Record<string, unknown>> {
   sheet: string | number;
   query: Record<string, unknown>;
@@ -63,6 +65,7 @@ export interface SearchOptions<T = Record<string, unknown>> {
 }
 
 // BatchRead query
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface BatchReadQuery<T = Record<string, unknown>> {
   sheet: string | number;
   range?: string;

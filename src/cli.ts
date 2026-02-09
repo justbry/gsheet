@@ -154,7 +154,7 @@ async function routeCommand(
   const { command } = parsed;
 
   switch (command) {
-    case 'init':
+    case 'init': {
       // Initialize or fix AGENTSCAPE structure
       const initResult = await initAgentscape(
         sheetClient,
@@ -169,6 +169,7 @@ async function routeCommand(
         process.exit(1);
       }
       break;
+    }
 
     case 'ls':
     case 'list':
@@ -195,7 +196,7 @@ async function routeCommand(
       break;
 
     case 'validate':
-    case 'check':
+    case 'check': {
       // Validate AGENTSCAPE structure
       const validationResult = await validateAgentscape(
         sheetClient,
@@ -206,6 +207,7 @@ async function routeCommand(
         process.exit(1);
       }
       break;
+    }
 
     case 'sheet-read':
       await cmdSheetRead(spreadsheetId, parsed);

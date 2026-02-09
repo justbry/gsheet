@@ -11,7 +11,7 @@ import type { ParsedArgs } from '../parser';
  */
 export async function cmdShell(
   agentscape: AgentScapeManager,
-  args: ParsedArgs
+  _args: ParsedArgs
 ): Promise<void> {
   const { startRepl } = await import('../repl');
   await startRepl(agentscape);

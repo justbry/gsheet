@@ -5,7 +5,7 @@
 
 import * as readline from 'node:readline';
 import type { AgentScapeManager } from './core/agentscape-manager';
-import { parseArgs, validateCommand } from './parser';
+import { parseArgs } from './parser';
 import { cmdList } from './commands/list';
 import { cmdRead } from './commands/read';
 import { cmdWrite } from './commands/write';

@@ -559,7 +559,6 @@ export class AgentScapeManager {
       });
 
       const now = new Date().toISOString();
-      const today = now.split('T')[0] || '';
 
       // Initialize AGENTS.md in column B
       const agentContext = await this.loadDefaultAgentContext();
