@@ -1,13 +1,12 @@
 # gsheet
 
-A lightweight TypeScript library that turns Google Sheets into a powerful agent workspace. Read, write, search data and manage task plans—all backed by a human-readable spreadsheet.
+A command-line tool for managing Google Sheets as an agent workspace. Store markdown files, manage task plans, and interact with spreadsheets—all from your terminal.
 
-[![npm version](https://badge.fury.io/js/gsheet.svg)](https://www.npmjs.com/package/gsheet)
 [![CI](https://github.com/justbry/gsheet/actions/workflows/ci.yml/badge.svg)](https://github.com/justbry/gsheet/actions/workflows/ci.yml)
 
-**6.6KB gzipped** | **132 tests passing** | **Full TypeScript support**
+**CLI-only tool** | **215 tests passing** | **Full TypeScript support**
 
-## Why Google Sheets?
+## Why Google Sheets for Agents?
 
 - **Human-readable state** — Debug and monitor your agent by opening a spreadsheet
 - **No database required** — Perfect for prototypes, MVPs, and serverless deployments
@@ -18,403 +17,228 @@ A lightweight TypeScript library that turns Google Sheets into a powerful agent 
 ## Installation
 
 ```bash
-# Using npm
-npm install gsheet zod
-
-# Using bun
-bun add gsheet zod
-```
-
-## Quick Start
-
-```typescript
-import { SheetAgent } from 'gsheet';
-
-// Connect to the agent (auto-initializes workspace)
-const agent = await SheetAgent.connect({
-  spreadsheetId: 'YOUR_SPREADSHEET_ID',
-  credentials: {
-    type: 'service_account',
-    project_id: 'your-project',
-    private_key: '-----BEGIN PRIVATE KEY-----\n...',
-    client_email: 'agent@your-project.iam.gserviceaccount.com',
-    // ... other service account fields
-  },
-});
-
-// Read data
-const users = await agent.read({ sheet: 'Users' });
-console.log(users.rows); // [{ name: 'Alice', ... }, ...]
-
-// Write data
-await agent.write({
-  sheet: 'Users',
-  data: [{ name: 'Bob', email: 'bob@example.com' }]
-});
-
-// Create a plan for your agent
-await agent.createPlan('Data Sync', 'Sync data from API to spreadsheet', [
-  { name: 'Fetch', steps: ['Call API', 'Parse response'] },
-  { name: 'Process', steps: ['Transform data', 'Validate records'] },
-  { name: 'Save', steps: ['Write to sheet', 'Mark complete'] }
-]);
-
-// Execute tasks
-const task = await agent.getNextTask();
-if (task) {
-  await agent.updateTask(task.step, { status: 'doing' });
-  // ... do work ...
-  await agent.updateTask(task.step, { status: 'done' });
-}
-```
-
-## CLI Tool
-
-The library includes a command-line interface (`gsheet`) for interacting with Google Sheets as a file system, storing markdown files in an AGENTSCAPE sheet.
-
-> **NOTE: Why Start with the CLI?**
->
-> When building agentic systems, starting with a CLI provides several advantages:
->
-> - **Rapid Prototyping** — Test your agent's workspace structure without writing application code
-> - **Hands-on Understanding** — Interact with the AGENTSCAPE sheet directly to understand how files are stored and retrieved
-> - **Debugging Aid** — Manually inspect, read, and modify agent files during development
-> - **Human-in-the-Loop** — Easily inject context, review agent outputs, or correct mistakes before automation
-> - **Progressive Enhancement** — Start with manual CLI commands, then automate with scripts, finally integrate the library API
-> - **Shared Mental Model** — The CLI commands (`read`, `write`, `ls`) map directly to the library's API methods
->
-> The CLI is not just a convenience tool—it's a learning interface that helps you design better agentic workflows by making the agent's workspace tangible and inspectable.
-
-### Installation
-
-```bash
-# Install globally
+# Install globally with bun
 bun install -g gsheet
 
 # Or use directly with bunx
 bunx gsheet --help
+
+# Or compile to standalone binary
+bun build --compile --minify ./src/cli.ts --outfile gsheet
 ```
 
-### Quick Start
+## Quick Start
 
 ```bash
 # Set your credentials (Base64-encoded service account JSON)
-export CREDENTIALS_CONFIG="<base64-encoded-json>"
+export CREDENTIALS_CONFIG=$(base64 -i service-account.json)
+
+# Initialize AGENTSCAPE structure
+gsheet init --spreadsheet-id YOUR_SPREADSHEET_ID
 
 # List all files
-gsheet ls --spreadsheet-id=YOUR_SPREADSHEET_ID
+gsheet ls --spreadsheet-id YOUR_SPREADSHEET_ID
 
 # Read a file
-gsheet read PLAN.md --spreadsheet-id=YOUR_SPREADSHEET_ID
+gsheet read PLAN.md --spreadsheet-id YOUR_SPREADSHEET_ID
 
 # Write a file
-gsheet write NOTES.md --content "# My Notes" --spreadsheet-id=YOUR_SPREADSHEET_ID
-
-# Write from a local file
-gsheet write RESEARCH.md --file ./research.md --spreadsheet-id=YOUR_SPREADSHEET_ID
+gsheet write NOTES.md --content "# My Notes" --spreadsheet-id YOUR_SPREADSHEET_ID
 
 # Start interactive shell
-gsheet shell --spreadsheet-id=YOUR_SPREADSHEET_ID
+gsheet shell --spreadsheet-id YOUR_SPREADSHEET_ID
 ```
 
-### AGENTSCAPE Sheet Format
+## Features
 
-The CLI stores files in an AGENTSCAPE sheet with the following structure:
+### AGENTSCAPE File System
 
-| FILE          | DESC | TAGS | DATES | Content/MD |
-|---------------|------|------|-------|------------|
-| AGENT-PROFILE.md | md | profile | 2026-01-20 | # Agent... |
-| RESEARCH.md      | md | research | 2026-01-20 | # Research |
-| PLAN.md          | md | plan | 2026-01-20 | # Plan...  |
+Store markdown files with metadata in a Google Sheet:
 
-**Special Case:** `PLAN.md` is automatically delegated to the plan system (stored in AGENT_BASE!B2) for consistency with the library API.
-
-### CLI Commands
-
-#### List Files
 ```bash
-gsheet ls --spreadsheet-id=ABC123
-gsheet list --spreadsheet-id=ABC123 --json  # JSON output
+# Write a file with metadata
+gsheet write RESEARCH.md \
+  --file ./local-research.md \
+  --desc "Research notes" \
+  --tags "ai,research" \
+  --status "active" \
+  --spreadsheet-id YOUR_ID
+
+# List all files with metadata
+gsheet ls --spreadsheet-id YOUR_ID
+
+# Output:
+# FILE          | DESC            | STATUS  | TAGS         | CTX
+# AGENTS.md     | Agent profile   | active  | system       | 1234
+# PLAN.md       | Active plan     | active  | plan         | 567
+# RESEARCH.md   | Research notes  | active  | ai,research  | 890
 ```
 
-#### Read Files
+### Interactive Shell
+
 ```bash
-gsheet read PLAN.md --spreadsheet-id=ABC123
-gsheet cat NOTES.md --spreadsheet-id=ABC123 --metadata  # Show metadata
+gsheet shell --spreadsheet-id YOUR_ID
+
+# In the shell:
+agentscape> ls
+agentscape> read PLAN.md
+agentscape> write NOTES.md --content "# Notes"
+agentscape> edit AGENTS.md  # Opens in $EDITOR
+agentscape> help
+agentscape> exit
 ```
 
-#### Write Files
-```bash
-# From content flag
-gsheet write NOTES.md --content "# Notes\n\nContent here" --spreadsheet-id=ABC123
-
-# From local file
-gsheet write RESEARCH.md --file ./local-file.md --spreadsheet-id=ABC123
-
-# With metadata
-gsheet write NOTES.md \
-  --content "# Notes" \
-  --desc "notes" \
-  --tags "important,draft" \
-  --dates "2026-01-20" \
-  --spreadsheet-id=ABC123
-```
-
-#### Delete Files
-```bash
-gsheet delete NOTES.md --spreadsheet-id=ABC123
-gsheet rm OLD_FILE.md --spreadsheet-id=ABC123
-```
-
-**Note:** `PLAN.md` is protected and cannot be deleted.
-
-#### Interactive Shell
-```bash
-gsheet shell --spreadsheet-id=ABC123
-```
-
-In the shell, you can use:
-- `ls` - List all files
-- `read <file>` or `cat <file>` - Read a file
-- `write <file> --content "..."` - Write a file
-- `edit <file>` - Open file in `$EDITOR`
-- `delete <file>` or `rm <file>` - Delete a file
-- `help` - Show available commands
-- `exit` or `quit` - Exit the shell
-
-**Features:**
+**Shell Features:**
 - Command history (up/down arrows)
 - Tab completion for commands and filenames
 - Edit files directly in your preferred editor
+- Persistent session within the same spreadsheet
 
-### CLI Authentication
+### Sheet Operations
 
-The CLI uses the same authentication methods as the library:
+Read and write to any sheet in the spreadsheet:
 
-1. **Environment variable (default):**
-   ```bash
-   export CREDENTIALS_CONFIG=$(base64 -i service-account.json)
-   gsheet ls --spreadsheet-id=ABC123
-   ```
+```bash
+# Read a sheet
+gsheet sheet-read --sheet Teachers --spreadsheet-id YOUR_ID
 
-2. **Credentials file:**
-   ```bash
-   gsheet ls --spreadsheet-id=ABC123 --credentials ./service-account.json
-   ```
+# Read as JSON objects
+gsheet sheet-read --sheet Teachers --format objects --json --spreadsheet-id YOUR_ID
 
-### CLI Options
+# Write to a sheet
+gsheet sheet-write --sheet Schedule --range "F28" --data '[["Justin B"]]' --spreadsheet-id YOUR_ID
+
+# Write multiple rows
+gsheet sheet-write --sheet Schedule --range "F28:F31" \
+  --data '[["A"],["B"],["C"],["D"]]' \
+  --spreadsheet-id YOUR_ID
+```
+
+### Structure Validation
+
+```bash
+# Validate AGENTSCAPE structure
+gsheet validate --spreadsheet-id YOUR_ID
+
+# Initialize or fix structure
+gsheet init --spreadsheet-id YOUR_ID
+
+# Dry run (see what would change)
+gsheet init --spreadsheet-id YOUR_ID --dry-run
+
+# Force re-initialization
+gsheet init --spreadsheet-id YOUR_ID --force
+```
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `init` | Initialize or fix AGENTSCAPE sheet structure |
+| `ls`, `list` | List all files in AGENTSCAPE sheet |
+| `read`, `cat <file>` | Read a file's content |
+| `write <file>` | Write a file (requires `--content` or `--file`) |
+| `delete`, `rm <file>` | Delete a file |
+| `shell` | Start interactive REPL shell |
+| `validate`, `check` | Validate AGENTSCAPE structure and format |
+| `sheet-read` | Read any sheet (requires `--sheet` flag) |
+| `sheet-write` | Write to any sheet (requires `--sheet`, `--range`, `--data`) |
+| `help` | Show help message |
+| `version` | Show version information |
+
+## Options
+
+### Global Options
 
 | Option | Description |
 |--------|-------------|
-| `--spreadsheet-id <id>` | Google Sheets spreadsheet ID (required) |
+| `--spreadsheet-id <id\|url>` | Google Sheets spreadsheet ID or URL (required) |
 | `--credentials <path>` | Path to service account credentials JSON |
 | `--env` | Use CREDENTIALS_CONFIG environment variable (default) |
-| `--content <text>` | File content (for write command) |
-| `--file <path>` | Path to local file (for write command) |
-| `--desc <text>` | File description |
-| `--tags <text>` | Comma-separated tags |
-| `--dates <text>` | Date information |
-| `--json` | Output as JSON (for list command) |
-| `--metadata` | Show metadata (for read command) |
 | `-h, --help` | Show help |
 | `-v, --version` | Show version |
 
+### Command-Specific Options
+
+| Option | Commands | Description |
+|--------|----------|-------------|
+| `--content <text>` | `write` | File content |
+| `--file <path>` | `write` | Path to local file |
+| `--desc <text>` | `write` | File description (max 50 words) |
+| `--tags <text>` | `write` | Comma-separated tags |
+| `--status <text>` | `write` | Lifecycle status: active, draft, archived |
+| `--path <text>` | `write` | Virtual path (default: /opt/agentscape/{file}) |
+| `--depends-on <text>` | `write` | Comma-separated file dependencies |
+| `--max-ctx-len <number>` | `write` | Token budget cap for this file |
+| `--json` | `ls`, `sheet-read` | Output as JSON |
+| `--metadata` | `read` | Show file metadata |
+| `--sheet <name>` | `sheet-read`, `sheet-write` | Sheet name |
+| `--range <A1>` | `sheet-write` | Cell range in A1 notation |
+| `--data <json>` | `sheet-write` | JSON 2D array of values |
+| `--format <type>` | `sheet-read` | Output format: array, objects (default: array) |
+| `--force` | `init` | Force re-initialization even if valid |
+| `--dry-run` | `init` | Show what would be done without making changes |
+
 ## Authentication
 
-Three methods (checked in order):
-
-### 1. Direct Credentials (Recommended for production)
-
-```typescript
-const agent = new SheetAgent({
-  spreadsheetId: 'YOUR_SPREADSHEET_ID',
-  credentials: {
-    type: 'service_account',
-    project_id: 'your-project',
-    private_key: process.env.GOOGLE_PRIVATE_KEY!,
-    client_email: process.env.GOOGLE_CLIENT_EMAIL!,
-    private_key_id: 'key-id',
-    client_id: 'client-id',
-    auth_uri: 'https://accounts.google.com/o/oauth2/auth',
-    token_uri: 'https://oauth2.googleapis.com/token',
-  },
-});
-```
-
-### 2. Base64 Environment Variable (Serverless)
+### Method 1: Environment Variable (Recommended)
 
 ```bash
 # Encode your service account JSON
 export CREDENTIALS_CONFIG=$(base64 -i service-account.json)
+
+# Use gsheet normally
+gsheet ls --spreadsheet-id YOUR_ID
 ```
 
-```typescript
-// No credentials needed—reads from CREDENTIALS_CONFIG
-const agent = new SheetAgent({
-  spreadsheetId: 'YOUR_SPREADSHEET_ID',
-});
+### Method 2: Credentials File
+
+```bash
+gsheet ls --spreadsheet-id YOUR_ID --credentials ./service-account.json
 ```
 
-### 3. Key File (Development only)
+### Daily Spreadsheet ID Caching
 
-```typescript
-const agent = new SheetAgent({
-  spreadsheetId: 'YOUR_SPREADSHEET_ID',
-  keyFile: './service-account.json',
-});
+On the first run each day, `--spreadsheet-id` is required. It's then cached in `.env.gsheet.YYYY-MM-DD`:
+
+```bash
+# First run today
+gsheet ls --spreadsheet-id YOUR_ID
+
+# Subsequent runs (same day)
+gsheet ls
+gsheet read PLAN.md
+gsheet write NOTES.md --content "# Notes"
 ```
 
-## Core API
+## AGENTSCAPE Sheet Structure
 
-### Data Operations
+The AGENTSCAPE sheet stores files in a column-based format:
 
-```typescript
-// Read data from a sheet (auto-detects headers)
-const data = await agent.read({
-  sheet: 'Users',
-  format: 'object' // Returns array of objects
-});
-console.log(data.rows); // [{ name: 'Alice', email: '...' }, ...]
-
-// Write data to a sheet
-await agent.write({
-  sheet: 'Users',
-  data: [
-    { name: 'Alice', email: 'alice@example.com' },
-    { name: 'Bob', email: 'bob@example.com' }
-  ]
-});
-
-// Search for rows
-const results = await agent.search({
-  sheet: 'Users',
-  query: { role: 'admin' },
-  operator: 'and',
-  matching: 'strict'
-});
-
-// Batch read multiple ranges efficiently
-const [users, products] = await agent.batchRead([
-  { sheet: 'Users', range: 'A1:C100' },
-  { sheet: 'Products', range: 'A1:E50' }
-]);
+```
+     A          B              C              D
+1  FILE     AGENTS.md      PLAN.md        NOTES.md
+2  DESC     Agent def      Active plan    My notes
+3  TAGS     system         plan           draft
+4  Path     /opt/agen...   /opt/agen...   /opt/agen...
+5  CreatedTS 2026-01-15... 2026-01-15...  2026-02-09...
+6  UpdatedTS 2026-02-01... 2026-02-08...  2026-02-09...
+7  Status   active         active         draft
+8  DependsOn               AGENTS.md
+9  ContextLen =LEN(B12)    =LEN(C12)      =LEN(D12)
+10 MaxCtxLen               5000
+11 Hash     =SHA256(B12)   =SHA256(C12)   =SHA256(D12)
+12 MDContent # Agent...    # Plan: ...    # Notes...
 ```
 
-### Sheet Management
-
-```typescript
-// List all sheets in the spreadsheet
-const sheets = await agent.listSheets();
-console.log(sheets); // ['Sheet1', 'Users', 'Products']
-
-// Create a new sheet
-const newSheet = await agent.createSheet('Reports');
-console.log(newSheet); // { sheetId: 123456, title: 'Reports' }
-```
-
-### Agent Properties
-
-```typescript
-// Access the agent context (read-only)
-console.log(agent.system); // AGENT.md content from AGENT_BASE!A2
-
-// Get the spreadsheet ID (useful for logging)
-console.log(agent.spreadsheetId); // '1abc...'
-```
-
-### Dual Format Support
-
-The `read()` method supports both object and array formats:
-
-```typescript
-// Object format (default) - auto-detects headers from first row
-const data = await agent.read({
-  sheet: 'Users',
-  format: 'object'
-});
-console.log(data.rows[0]); // { name: 'Alice', email: 'alice@...' }
-
-// Array format - returns raw 2D array
-const rawData = await agent.read({
-  sheet: 'Users',
-  format: 'array'
-});
-console.log(rawData.rows[0]); // ['name', 'email']
-console.log(rawData.rows[1]); // ['Alice', 'alice@...']
-
-// Custom headers (skip first row)
-const customData = await agent.read({
-  sheet: 'Users',
-  headers: ['name', 'email', 'role']
-});
-
-// Skip headers entirely (use numeric indices)
-const noHeadersData = await agent.read({
-  sheet: 'Users',
-  headers: false
-});
-console.log(noHeadersData.rows[0]); // { col0: 'Alice', col1: 'alice@...' }
-```
-
-## Configuration Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `spreadsheetId` | string | Required | Google Sheets ID |
-| `credentials` | object | — | Service account credentials |
-| `keyFile` | string | — | Path to service account JSON |
-| `defaultFormat` | `'object'` \| `'array'` | `'object'` | Default data format for reads |
-| `retry.enabled` | boolean | `true` | Enable automatic retry on transient errors |
-| `retry.maxAttempts` | number | `3` | Max retry attempts for failed requests |
-| `retry.retryableErrors` | string[] | Network errors | Custom list of retryable error codes |
-
-## Error Handling
-
-All errors include an actionable `.fix` property:
-
-```typescript
-import {
-  ValidationError,
-  PermissionError,
-  NetworkError,
-  AuthError,
-  PlanError
-} from 'gsheet';
-
-try {
-  await agent.write({ sheet: 'Data', data: [...] });
-} catch (error) {
-  if (error instanceof PermissionError) {
-    console.log(error.message); // "Cannot access sheet 'Data'"
-    console.log(error.fix);     // "Share the spreadsheet with your service account email"
-  }
-  if (error instanceof NetworkError) {
-    console.log(error.fix);     // "Check your network connection. The request will be retried automatically."
-  }
-  if (error instanceof PlanError) {
-    console.log(error.fix);     // "Create a plan first using agent.createPlan()"
-  }
-}
-```
+**Special Files:**
+- `AGENTS.md` - Agent identity and system prompt
+- `PLAN.md` - Task plan with markdown format (see Plan System below)
+- Other `.md` files - Custom agent context and notes
 
 ## Plan System
 
-The library includes a plan-based task management system stored in the AGENT_BASE sheet.
-
-### Workspace Structure
-
-When you connect to an agent with `SheetAgent.connect()`, the **AGENT_BASE** sheet is automatically created with:
-
-| Cell | Purpose |
-|------|---------|
-| A1 | "AGENT.md Contents" marker |
-| A2 | Agent context markdown (loaded into `agent.system` property) |
-| B1 | "PLAN.md Contents" marker |
-| B2 | Plan markdown with phases and tasks |
-
-### Plan Format
-
-Plans use a markdown-based format:
+`PLAN.md` uses a structured markdown format for task management:
 
 ```markdown
 # Plan: [title]
@@ -424,9 +248,6 @@ Goal: [goal description]
 ## Analysis
 - Spreadsheet: [name]
 - Key sheets: [list]
-- Target ranges:
-  - Read: [ranges]
-  - Write: [ranges]
 - Current state: [description]
 
 ## Questions for User
@@ -441,107 +262,93 @@ Goal: [goal description]
 
 ### Phase 2: [Phase Name]
 - [ ] 2.1 Another task
-- [ ] 2.2 Yet another task
 
 ## Notes
-[key: value pairs for working memory]
+key: value pairs for working memory
 ```
 
-### Plan Management
+### Task Status Markers
 
-```typescript
-// Create a plan
-await agent.createPlan('Data Migration', 'Migrate legacy data to new format', [
-  { name: 'Preparation', steps: ['Read source data', 'Validate formats'] },
-  { name: 'Migration', steps: ['Transform data', 'Write to target'] },
-  { name: 'Verification', steps: ['Run validation checks', 'Generate report'] }
-]);
-
-// Get current plan
-const plan = await agent.getPlan();
-console.log(plan.title);
-console.log(plan.phases);
-
-// Get next task to work on
-const nextTask = await agent.getNextTask();
-if (nextTask) {
-  console.log(nextTask.step); // "1.1"
-  console.log(nextTask.title); // "Read source data"
-
-  // Mark task as in progress
-  await agent.updateTask('1.1', { status: 'doing' });
-
-  // Mark task as done
-  await agent.updateTask('1.1', { status: 'done' });
-
-  // Or mark as blocked
-  await agent.updateTask('1.2', {
-    status: 'blocked',
-    reason: 'Waiting for API credentials'
-  });
-}
-
-// Get tasks needing review
-const reviewTasks = await agent.getReviewTasks();
-
-// Add notes for working memory
-await agent.appendNotes('source_row_count: 1523');
-await agent.appendNotes('last_processed_id: abc-123');
-```
-
-### Task Status Types
-
-- **`todo`** (`[ ]`) - Not started
-- **`doing`** (`[/]`) - In progress
-- **`done`** (`[x]`) - Completed (adds completion date)
-- **`blocked`** (`[>]`) - Blocked (requires reason)
-- **`review`** (`[!]`) - Needs review (requires note)
+- `[ ]` - Todo (not started)
+- `[/]` - Doing (in progress)
+- `[x]` - Done (completed, adds date)
+- `[>]` - Blocked (requires reason)
+- `[!]` - Review (needs review, add note)
 
 ## Examples
 
-The `examples/` directory contains production-ready examples demonstrating real-world use cases:
+### Backup All Files
 
-### WhatsApp CLI (`examples/whatsapp-cli/`)
-
-Send and receive WhatsApp messages via Meta WhatsApp Cloud API.
-
-**Features**:
-- Send text messages and templates
-- Receive messages via webhook
-- Check account status and quality rating
-- Integration with sun-school-advisor for automated notifications
-
-**Quick Start**:
 ```bash
-cd examples/whatsapp-cli
-cp .env.example .env
-# Fill in Meta WhatsApp credentials
-bun whatsapp-cli.ts send --to=+15551234567 --message="Hello!" --confirm
+#!/usr/bin/env bun
+import { $ } from "bun";
+
+const SPREADSHEET_ID = "YOUR_SPREADSHEET_ID";
+const BACKUP_DIR = "./agentscape-backup";
+
+// Get list of files
+const files = await $`gsheet ls --spreadsheet-id=${SPREADSHEET_ID} --json`.json();
+
+// Create backup directory
+await $`mkdir -p ${BACKUP_DIR}`;
+
+// Download each file
+for (const file of files) {
+  const content = await $`gsheet read ${file.file} --spreadsheet-id=${SPREADSHEET_ID}`.text();
+  await Bun.write(`${BACKUP_DIR}/${file.file}`, content);
+  console.log(`Backed up: ${file.file}`);
+}
 ```
 
-See [examples/whatsapp-cli/README.md](examples/whatsapp-cli/README.md) for full documentation.
+### Daily Journal
 
-### Sunday School Coordinator (`examples/sun-school-advisor/`)
-
-Automated teacher assignment system with iMessage notifications.
-
-**Features**:
-- Analyze teacher schedules and find coverage gaps
-- Suggest assignments based on language compatibility and workload
-- Send iMessage notifications to assigned teachers
-- Teachers reply YES/NO to confirm assignments
-
-**Quick Start**:
 ```bash
-bun examples/sun-school-advisor/sunday-school-coordinator.ts --confirm
+#!/usr/bin/env bun
+import { $ } from "bun";
+
+const SPREADSHEET_ID = "YOUR_SPREADSHEET_ID";
+const date = new Date().toISOString().split('T')[0];
+const filename = `${date}-journal.md`;
+
+// Create journal entry
+const content = `# Journal - ${date}
+
+## Today's Goals
+-
+
+## Notes
+-
+
+## Reflections
+-
+`;
+
+// Write to AGENTSCAPE
+await $`gsheet write ${filename} --content=${content} --desc="Daily journal" --tags="journal" --spreadsheet-id=${SPREADSHEET_ID}`;
+
+console.log(`Created: ${filename}`);
 ```
 
-### CLI Examples
+### Sync Local Folder
 
-The `examples/cli/` directory demonstrates common CLI patterns:
-- `backup-all-files.ts` - Backup all files from AGENTSCAPE sheet
-- `daily-journal.ts` - Daily journaling workflow
-- `sync-folder.ts` - Sync local folder to AGENTSCAPE sheet
+```bash
+#!/usr/bin/env bun
+import { $ } from "bun";
+import { readdir } from "node:fs/promises";
+
+const SPREADSHEET_ID = "YOUR_SPREADSHEET_ID";
+const LOCAL_DIR = "./docs";
+
+// Get all .md files
+const files = await readdir(LOCAL_DIR);
+const mdFiles = files.filter(f => f.endsWith('.md'));
+
+// Sync each file
+for (const file of mdFiles) {
+  await $`gsheet write ${file} --file=${LOCAL_DIR}/${file} --spreadsheet-id=${SPREADSHEET_ID}`;
+  console.log(`Synced: ${file}`);
+}
+```
 
 ## Development
 
@@ -552,15 +359,118 @@ bun install
 # Run tests
 bun test
 
+# Run unit tests only (exclude integration tests)
+bun test --exclude tests/integration/*.test.ts
+
 # Type check
 bun run typecheck
 
 # Build
 bun run build
 
-# Check bundle size
-bun run size
+# Compile to standalone binary
+bun build --compile --minify ./src/cli.ts --outfile gsheet
+
+# Test compiled binary
+./gsheet --version
+./gsheet --help
 ```
+
+## Project Structure
+
+```
+src/
+├── cli.ts                    # Main CLI entry point
+├── parser.ts                 # Argument parsing
+├── repl.ts                   # REPL implementation
+│
+├── commands/                 # Individual command handlers
+│   ├── list.ts
+│   ├── read.ts
+│   ├── write.ts
+│   ├── delete.ts
+│   ├── shell.ts
+│   ├── sheet-read.ts
+│   ├── sheet-write.ts
+│   ├── init.ts
+│   └── validate.ts
+│
+├── core/                     # Core implementation
+│   ├── agent.ts             # SheetAgent class
+│   ├── sheet-client.ts      # Google Sheets API client
+│   ├── plan-manager.ts      # Plan/task management
+│   └── agentscape-manager.ts # File system abstraction
+│
+├── types.ts                  # Type definitions
+├── errors.ts                 # Error classes
+└── schemas.ts                # Constants
+```
+
+## Error Handling
+
+All errors include actionable `.fix` properties:
+
+```typescript
+// In your code using gsheet as a library
+import { ValidationError, PermissionError, NetworkError } from 'gsheet';
+
+try {
+  // ... operations ...
+} catch (error) {
+  if (error instanceof PermissionError) {
+    console.log(error.message); // "Cannot access spreadsheet"
+    console.log(error.fix);     // "Share the spreadsheet with your service account email"
+  }
+}
+```
+
+From the CLI, errors are displayed with helpful messages:
+
+```bash
+$ gsheet ls --spreadsheet-id INVALID_ID
+Permission Error: The service account does not have access to this spreadsheet.
+Fix: Share the spreadsheet with the service account email (found in credentials JSON)
+```
+
+## Troubleshooting
+
+### Missing Spreadsheet ID
+
+```bash
+Error: Missing --spreadsheet-id. Required on first run each day.
+```
+
+**Fix**: Provide `--spreadsheet-id` on your first command each day:
+```bash
+gsheet ls --spreadsheet-id YOUR_ID
+```
+
+### Permission Denied
+
+```bash
+Permission Error: The service account does not have access to this spreadsheet.
+```
+
+**Fix**: Share your spreadsheet with the service account email (found in your credentials JSON as `client_email`).
+
+### Invalid Credentials
+
+```bash
+Authentication Error: Failed to parse CREDENTIALS_CONFIG
+```
+
+**Fix**: Re-encode your credentials:
+```bash
+export CREDENTIALS_CONFIG=$(base64 -i service-account.json)
+```
+
+### API Rate Limit
+
+```bash
+Error: Quota exceeded for quota metric 'Read requests'
+```
+
+**Fix**: Wait a minute. Google Sheets API has a limit of 60 requests per minute per user.
 
 ## License
 
