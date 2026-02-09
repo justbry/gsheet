@@ -1,6 +1,6 @@
 {
   "name": "gsheet",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "CLI tool for Google Sheets agent workspace",
   "type": "module",
   "bin": {
@@ -20,9 +20,9 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
     "validate": "bun run typecheck && bun run test && bun run size",
-    "size": "bun run build && gzip -c dist/index.js | wc -c",
-    "demo": "bun --hot examples/web-demo/server.ts"
+    "size": "bun run build && gzip -c dist/index.js | wc -c"
   },
   "keywords": [
     "google-sheets",
@@ -47,6 +47,9 @@
     "@types/node": "^22.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tsup": "^8.0.0",
