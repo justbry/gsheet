@@ -9,14 +9,14 @@ Each file occupies one column. Rows 1-11 hold metadata; row 12+ holds content.
 ```
         A            B                              C                              D
    +------------+---------------------------+-------------------------------+-------------------------------+
- 1 | FILE       | AGENTS.md                 | WORKFLOW.md                   | HISTORY.md                    |
+ 1 | FILE       | AGENTS.md                 | PLAN.md                   | HISTORY.md                    |
    +------------+---------------------------+-------------------------------+-------------------------------+
- 2 | DESC       | Core agent identity and   | Available tools and their     | Append-only audit log of      |
-   |            | capabilities.             | schemas.                      | agent actions.                |
+ 2 | DESC       | Core agent identity and   | Current plan                  | Append-only audit log of      |
+   |            | capabilities.             |                               | agent actions.                |
    +------------+---------------------------+-------------------------------+-------------------------------+
  3 | TAGS       | system                    | tools,workflow                | log,append                    |
    +------------+---------------------------+-------------------------------+-------------------------------+
- 4 | Path       | /opt/agentscape/AGENTS.md | /opt/agentscape/WORKFLOW.md   | /opt/agentscape/HISTORY.md    |
+ 4 | Path       | /opt/agentscape/AGENTS.md | /opt/agentscape/PLAN.md   | /opt/agentscape/HISTORY.md    |
    +------------+---------------------------+-------------------------------+-------------------------------+
  5 | CreatedTS  | 2026-01-15T08:00:00Z      | 2026-01-15T08:00:00Z          | 2026-01-15T08:00:00Z          |
    +------------+---------------------------+-------------------------------+-------------------------------+
@@ -32,9 +32,9 @@ Each file occupies one column. Rows 1-11 hold metadata; row 12+ holds content.
    +------------+---------------------------+-------------------------------+-------------------------------+
 11 | Hash       | =SHA256(B12) -> a3f2...   | =SHA256(C12) -> 7b91...       | =SHA256(D12) -> e4c8...       |
    +------------+---------------------------+-------------------------------+-------------------------------+
-12 | MDContent  | # Agent...                | # Workflow...                 | # History...                  |
-   |            | You are a sales analyst   | ## Tools                      | [2026-01-21] Agent init       |
-   |            | ## Capabilities           | - read_sheet                  | [2026-01-21] Plan loaded      |
+12 | MDContent  | # Agent...                | # Plan...                 | # History...                  |
+   |            | You are a sales analyst   | ## Phase 1                      | [2026-01-21] Agent init       |
+   |            | ## Capabilities           | - [ ] ...                  | [2026-01-21] Plan loaded      |
    +------------+---------------------------+-------------------------------+-------------------------------+
       Labels        File 1                     File 2                         File 3
 ```
@@ -65,9 +65,9 @@ Each file occupies one column. Rows 1-11 hold metadata; row 12+ holds content.
 
 ### Cell References
 
-To read `WORKFLOW.md` directly via Sheets API:
-- Filename: `C1` -> `"WORKFLOW.md"`
-- Path: `C4` -> `"/opt/agentscape/WORKFLOW.md"`
+To read `PLAN.md` directly via Sheets API:
+- Filename: `C1` -> `"PLAN.md"`
+- Path: `C4` -> `"/opt/agentscape/PLAN.md"`
 - Status: `C7` -> `"active"`
 - Dependencies: `C8` -> `"AGENTS.md"`
 - Token estimate: `C9` -> `=INT(LEN(C12)/4)` (formula, returns ~3750)
@@ -144,33 +144,6 @@ Row 11 contains a **formula** that computes a SHA256 hash of MDContent:
 ```
 
 Use cases: cache invalidation, cross-environment sync, change detection.
-
----
-
-## Migration from AGENT_BASE
-
-Legacy spreadsheets using the old `AGENT_BASE` sheet are automatically migrated when connecting via `SheetAgent.connect()`.
-
-**Steps:**
-1. Detect `AGENT_BASE` sheet exists
-2. Read `AGENT_BASE!A2` (agent content) and `AGENT_BASE!B2` (plan content)
-3. Create `AGENTSCAPE` sheet with 12-row column-based format
-4. Write `AGENTS.md` in column B, `PLAN.md` in column C
-5. Rename `AGENT_BASE` to `AGENT_BASE_BACKUP`
-
-## Comparison: AGENT_BASE vs AGENTSCAPE
-
-| Aspect | AGENT_BASE | AGENTSCAPE |
-|--------|------------|------------|
-| File storage | 2 files only (A, B) | Unlimited files |
-| Metadata | None | 11 fields per file |
-| Token counting | Manual | Auto-calculated formula |
-| Token budgeting | None | MaxCtxLen caps per file |
-| Change detection | None | SHA256 hash |
-| Lifecycle | None | Status: active/draft/archived |
-| Dependencies | None | DependsOn + dependency loading |
-| Virtual paths | None | `/opt/agentscape/{file}` |
-| API | Hard-coded cells (`A2`, `B2`) | File system (`readFile`, `writeFile`) |
 
 ## Changelog
 

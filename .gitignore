@@ -36,6 +36,8 @@ prompts/archive/*
 # Finder (MacOS) folder config
 .DS_Store
 
+disabled
+
 # Auto Claude data directory
 .auto-claude*
 
@@ -50,3 +52,4 @@ prompts/archive/*
 /demo-*.ts
 /analyze-*.ts
 /explore-*.ts
+gsheet
