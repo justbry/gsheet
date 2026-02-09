@@ -3,6 +3,8 @@
  * Parses command-line arguments into structured commands
  */
 
+import packageJson from '../package.json';
+
 export interface ParsedArgs {
   command: string;
   args: string[];
@@ -364,9 +366,8 @@ AUTHENTICATION:
 }
 
 /**
- * Get version text
+ * Get version text from package.json
  */
 export function getVersionText(): string {
-  // Note: In production, this would read from package.json
-  return 'gsheet v2.0.0';
+  return `gsheet v${packageJson.version}`;
 }
