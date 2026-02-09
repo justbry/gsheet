@@ -241,7 +241,7 @@ export async function resolveSpreadsheetId(flags: Record<string, string | boolea
     const glob = new Bun.Glob('.env.gsheet.*');
     for await (const file of glob.scan('.')) {
       if (file !== envFile) {
-        try { unlinkSync(file); } catch {}
+        try { unlinkSync(file); } catch { /* ignore errors */ }
       }
     }
     return id;
@@ -368,5 +368,5 @@ AUTHENTICATION:
  */
 export function getVersionText(): string {
   // Note: In production, this would read from package.json
-  return 'gsheet v1.1.0';
+  return 'gsheet v2.0.0';
 }
