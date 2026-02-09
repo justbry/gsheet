@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { AgentScapeManager, AGENTSCAPE_SHEET } from '../../src/managers/agentscape-manager';
-import { PlanManager } from '../../src/managers/plan-manager';
-import type { SheetClient } from '../../src/core/sheet-client';
-import type { AgentFile } from '../../src/types';
-import { ValidationError } from '../../src/errors';
+import { AgentScapeManager, AGENTSCAPE_SHEET } from '../src/core/agentscape-manager';
+import { PlanManager } from '../src/core/plan-manager';
+import type { SheetClient } from '../src/core/sheet-client';
+import type { AgentFile } from '../src/types';
+import { ValidationError } from '../src/errors';
 
 // Helper to build a full AgentFile with defaults
 function makeFile(overrides: Partial<AgentFile> & { file: string; content: string }): AgentFile {

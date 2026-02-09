@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SheetAgent } from '../src/agent';
+import { SheetAgent } from '../src/core/agent';
 import { ValidationError } from '../src/errors';
 import { mockCredentials } from './helpers';
 

@@ -5,7 +5,7 @@ import {
   extractAuthOptions,
   getHelpText,
   getVersionText,
-} from '../../src/cli/parser';
+} from '../src/parser';
 
 describe('Parser', () => {
   describe('parseArgs()', () => {

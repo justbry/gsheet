@@ -5,7 +5,7 @@
  */
 
 import type { Plan, PlanTask, PhaseInput, TaskStatus, Phase, PlanAnalysis, TaskUpdate } from '../types';
-import type { SheetClient } from '../core/sheet-client';
+import type { SheetClient } from './sheet-client';
 
 const STATUS_MAP: Record<string, TaskStatus> = {
   ' ': 'todo',

@@ -25,7 +25,6 @@ const VALID_COMMANDS = [
   'validate', 'check',
   'sheet-read',
   'sheet-write',
-  'send-message',
   'help',
   'version',
 ];
@@ -169,25 +168,6 @@ export function validateCommand(parsed: ParsedArgs): void {
         throw new Error('Command "sheet-write" requires --data flag (JSON string of 2D array)');
       }
       break;
-
-    case 'send-message':
-      if (!flags.recipient) {
-        throw new Error('Command "send-message" requires --recipient flag');
-      }
-      if (!flags.message) {
-        throw new Error('Command "send-message" requires --message flag');
-      }
-      if (!flags.confirm) {
-        throw new Error('Command "send-message" requires --confirm flag for safety');
-      }
-      // Validate provider if specified
-      if (flags.provider && typeof flags.provider === 'string') {
-        const validProviders = ['imessage', 'telnyx', 'auto'];
-        if (!validProviders.includes(flags.provider)) {
-          throw new Error(`Invalid --provider: ${flags.provider}. Valid options: ${validProviders.join(', ')}`);
-        }
-      }
-      break;
   }
 
   // spreadsheet-id validation is handled by resolveSpreadsheetId() with daily caching
@@ -299,7 +279,6 @@ COMMANDS:
   validate, check       Validate AGENTSCAPE structure and format
   sheet-read            Read any sheet (requires --sheet flag)
   sheet-write           Write to any sheet (requires --sheet, --range, --data)
-  send-message          Send iMessage (requires --recipient and --message)
   help                  Show this help message
   version               Show version information
 
@@ -312,10 +291,6 @@ OPTIONS:
   --range <A1>              Cell range in A1 notation (for sheet-write)
   --data <json>             JSON 2D array of values (for sheet-write)
   --format <type>           Output format: array, objects (default: array)
-  --recipient <phone>       Phone number or contact name (for send-message)
-  --message <text>          Message text to send (for send-message)
-  --confirm                 Confirm sending message (required for send-message)
-  --provider <type>         Messaging provider: imessage, telnyx, auto (default: auto)
   --content <text>          File content (for write command)
   --file <path>             Path to local file (for write command)
   --desc <text>             File description (max 50 words)
@@ -375,13 +350,6 @@ EXAMPLES:
 
   # Write multiple rows
   gsheet sheet-write --sheet Schedule --range "F28:F31" --data '[["A"],["B"],["C"],["D"]]'
-
-  # Send iMessage (auto-detect provider)
-  gsheet send-message --recipient "+15551234567" --message "Hello!" --confirm
-
-  # Send via specific provider
-  gsheet send-message --recipient "+15551234567" --message "Hello!" --provider telnyx --confirm
-  gsheet send-message --recipient "+15551234567" --message "Hello!" --provider imessage --confirm
 
 AUTHENTICATION:
   By default, the CLI uses the CREDENTIALS_CONFIG environment variable (Base64-encoded

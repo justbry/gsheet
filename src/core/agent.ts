@@ -18,12 +18,12 @@ import type {
   ClearResult,
   DeleteRowsOptions,
   DeleteRowsResult,
-} from './types';
+} from '../types';
 import type { sheets_v4 } from 'googleapis';
-import { ValidationError, PermissionError } from './errors';
-import { SheetClient } from './core/sheet-client';
-import { PlanManager } from './managers/plan-manager';
-import { AgentScapeManager } from './managers/agentscape-manager';
+import { ValidationError, PermissionError } from '../errors';
+import { SheetClient } from './sheet-client';
+import { PlanManager } from './plan-manager';
+import { AgentScapeManager } from './agentscape-manager';
 
 export class SheetAgent {
   private readonly options: SheetAgentOptions;

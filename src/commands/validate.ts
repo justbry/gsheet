@@ -6,7 +6,7 @@
  * - Column B+: Files following the 12-row structure
  */
 
-import type { SheetClient } from '../../core/sheet-client';
+import type { SheetClient } from '../core/sheet-client';
 
 interface ValidationResult {
   valid: boolean;

@@ -13,7 +13,7 @@
  */
 
 import type { AgentFile } from '../types';
-import type { SheetClient } from '../core/sheet-client';
+import type { SheetClient } from './sheet-client';
 import type { PlanManager } from './plan-manager';
 import { ValidationError } from '../errors';
 

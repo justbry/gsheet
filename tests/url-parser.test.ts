@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'vitest';
-import { extractSpreadsheetId } from '../../src/cli/parser';
+import { extractSpreadsheetId } from '../src/parser';
 
 describe('extractSpreadsheetId', () => {
   test('should extract ID from full URL', () => {

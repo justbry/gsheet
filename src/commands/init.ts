@@ -12,7 +12,7 @@
  * 4. Preserve existing file content
  */
 
-import type { SheetClient } from '../../core/sheet-client';
+import type { SheetClient } from '../core/sheet-client';
 
 interface InitResult {
   success: boolean;

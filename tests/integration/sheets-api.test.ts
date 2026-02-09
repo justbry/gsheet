@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { SheetAgent } from '../../src/agent';
+import { SheetAgent } from '../../src/core/agent';
 
 // Skip all tests if no integration environment is configured
 const SHEET_ID = process.env.INTEGRATION_TEST_SHEET_ID;

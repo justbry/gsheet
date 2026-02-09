@@ -5,11 +5,11 @@
  * Command-line interface for AgentScape file system
  */
 
-import { SheetClient } from '../core/sheet-client';
-import { PlanManager } from '../managers/plan-manager';
-import { AgentScapeManager } from '../managers/agentscape-manager';
-import { AuthError, ValidationError } from '../errors';
-import type { ServiceAccountCredentials } from '../types';
+import { SheetClient } from './core/sheet-client';
+import { PlanManager } from './core/plan-manager';
+import { AgentScapeManager } from './core/agentscape-manager';
+import { AuthError, ValidationError } from './errors';
+import type { ServiceAccountCredentials } from './types';
 import {
   parseArgs,
   validateCommand,
@@ -18,9 +18,15 @@ import {
   getHelpText,
   getVersionText,
 } from './parser';
-import { cmdList, cmdRead, cmdWrite, cmdDelete, cmdShell, cmdSheetRead, cmdSheetWrite, cmdSendMessage } from './commands';
-import { validateAgentscape, formatValidationResult } from './commands/validate-agentscape';
-import { initAgentscape, formatInitResult } from './commands/init-agentscape';
+import { cmdList } from './commands/list';
+import { cmdRead } from './commands/read';
+import { cmdWrite } from './commands/write';
+import { cmdDelete } from './commands/delete';
+import { cmdShell } from './commands/shell';
+import { cmdSheetRead } from './commands/sheet-read';
+import { cmdSheetWrite } from './commands/sheet-write';
+import { validateAgentscape, formatValidationResult } from './commands/validate';
+import { initAgentscape, formatInitResult } from './commands/init';
 
 /**
  * Main CLI function
@@ -45,12 +51,6 @@ async function main() {
 
     // Validate command and arguments
     validateCommand(parsed);
-
-    // Handle send-message separately (doesn't need spreadsheet)
-    if (parsed.command === 'send-message') {
-      await cmdSendMessage(parsed);
-      process.exit(0);
-    }
 
     // Resolve spreadsheet ID from flag or daily cache
     const resolvedId = await resolveSpreadsheetId(parsed.flags);

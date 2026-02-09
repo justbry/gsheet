@@ -4,9 +4,12 @@
  */
 
 import * as readline from 'node:readline';
-import type { AgentScapeManager } from '../managers/agentscape-manager';
+import type { AgentScapeManager } from './core/agentscape-manager';
 import { parseArgs, validateCommand } from './parser';
-import { cmdList, cmdRead, cmdWrite, cmdDelete } from './commands';
+import { cmdList } from './commands/list';
+import { cmdRead } from './commands/read';
+import { cmdWrite } from './commands/write';
+import { cmdDelete } from './commands/delete';
 
 const PROMPT = 'agentscape> ';
 

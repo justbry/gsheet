@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { PlanManager } from '../src/managers/plan-manager';
+import { PlanManager } from '../src/core/plan-manager';
 import type { SheetClient } from '../src/core/sheet-client';
 import type { Plan, PhaseInput, TaskUpdate } from '../src/types';
 
