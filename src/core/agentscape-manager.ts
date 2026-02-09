@@ -152,6 +152,9 @@ export class AgentScapeManager {
     }
 
     const fileRow = rows[0];
+    if (!fileRow) {
+      return files;
+    }
 
     for (let col = 1; col < fileRow.length; col++) {
       const filename = String(fileRow[col] || '').trim();
@@ -357,6 +360,9 @@ export class AgentScapeManager {
     }
 
     const fileRow = rows[0];
+    if (!fileRow) {
+      throw new ValidationError('Missing header row in column-based sheet');
+    }
 
     // Find which column this file is in
     let columnIndex = -1;
@@ -379,7 +385,7 @@ export class AgentScapeManager {
       if (!file.createdTs) {
         file.createdTs = new Date().toISOString();
       }
-      // Find next available column
+      // Find next available column (fileRow is guaranteed to exist by earlier check)
       columnIndex = fileRow.length;
       for (let col = 1; col < fileRow.length; col++) {
         const filename = String(fileRow[col] || '').trim();

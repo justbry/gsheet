@@ -148,18 +148,18 @@ export async function initAgentscape(
 
   // Add each file as a column
   files.forEach((file) => {
-    fixedData[0].push(file.name);
-    fixedData[1].push(file.desc);
-    fixedData[2].push(file.tags);
-    fixedData[3].push(file.path);
-    fixedData[4].push(file.createdTs);
-    fixedData[5].push(file.updatedTs);
-    fixedData[6].push(file.status);
-    fixedData[7].push(file.dependsOn);
-    fixedData[8].push(file.contextLen);
-    fixedData[9].push(file.maxCtxLen);
-    fixedData[10].push(file.hash);
-    fixedData[11].push(file.content);
+    fixedData[0]?.push(file.name);
+    fixedData[1]?.push(file.desc);
+    fixedData[2]?.push(file.tags);
+    fixedData[3]?.push(file.path);
+    fixedData[4]?.push(file.createdTs);
+    fixedData[5]?.push(file.updatedTs);
+    fixedData[6]?.push(file.status);
+    fixedData[7]?.push(file.dependsOn);
+    fixedData[8]?.push(file.contextLen);
+    fixedData[9]?.push(file.maxCtxLen);
+    fixedData[10]?.push(file.hash);
+    fixedData[11]?.push(file.content);
   });
 
   // Step 6: Write to sheet (or simulate if dry run)
